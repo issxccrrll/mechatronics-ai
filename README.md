@@ -73,7 +73,13 @@ Las fotos se toman con **la misma webcam de la demo**, a 640×480, en 3 o más s
 - `--clase mixto`: escenas con varios objetos del reto juntos.
 - `--clase fondo`: escenas sin ninguno (negativos, reducen falsos positivos).
 
-`train.py` aplica por defecto augmentation de "cámara barata" (desenfoque, ruido, JPEG, baja resolución y poca luz) con Albumentations.
+`train.py` aplica por defecto augmentation para que el modelo **generalice** a ejemplares que no vio (por ejemplo, tijeras de otro color) y aprenda la forma en vez de atajos:
+- **Color:** tono muy variable (`hsv_h=0.4`), canales intercambiados y escala de grises.
+- **Iluminación:** sombras artificiales, brillo y contraste.
+- **Geometría:** rotación, perspectiva y volteos.
+- **Cámara barata:** desenfoque, ruido, JPEG y baja resolución.
+
+Usa Albumentations.
 - Instálalo con `pip install albumentations`.
 - En local, después ejecuta `pip uninstall -y opencv-python-headless` y `pip install --force-reinstall --no-deps opencv-python==5.0.0.93`. Si no, se rompen las ventanas de OpenCV.
 
@@ -84,9 +90,24 @@ python scripts/capture.py --clase fondo           # sin objetos del reto
 python scripts/autolabel.py --vista               # pre-etiqueta; vistas en dataset/revision/
 # etiquetar (Roboflow / LabelImg / CVAT) en formato YOLO, .txt junto a cada imagen
 python scripts/split_dataset.py                   # train/val/test por sesión
-python scripts/train.py --epochs 80 --device cpu  # o notebooks/train_colab.ipynb con GPU
+python scripts/train.py --epochs 80 --device 0   # en la nube: notebooks/train_colab.ipynb (GPU)
 python scripts/export.py --model runs/mechatronics/weights/best.pt
 ```
+
+### Test con ejemplares no vistos
+
+Para demostrar que el modelo reconoce objetos que nunca vio:
+1. Captura uno o dos objetos físicos por clase marcándolos con `--ejemplar`.
+   - Ejemplo: `python scripts/capture.py --clase tijeras --ejemplar tijeras-verdes`
+2. Al dividir, resérvalos solo para test.
+   - Ejemplo: `python scripts/split_dataset.py --ejemplares-test tijeras-verdes taza-azul`
+3. Esos objetos van completos a test y ninguna foto suya entra a train ni a val.
+
+### Entrenamiento en la nube
+
+Entrenar en CPU es inviable con miles de fotos. Se entrena en GPU con `notebooks/train_colab.ipynb`:
+- El notebook clona el repo, copia `dataset.zip` desde Drive y ejecuta `scripts/train.py --device 0`.
+- La **inferencia** sigue en CPU, como exige el reto.
 
 ### Etiquetado
 

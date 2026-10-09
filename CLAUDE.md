@@ -28,6 +28,15 @@ Detector de objetos en vivo para el reto "Mechatronics AI" (Hack Knights IA Chal
 - Inferencia a imgsz 640: yolo11n.pt unos 22.5 FPS; OpenVINO unos 62 FPS. Por eso OpenVINO es el modelo por defecto.
 - La primera inferencia con OpenVINO tarda unos 10 s; `YoloDetector._calentar()` la hace antes de abrir la cámara.
 
+## Dataset y entrenamiento
+- **Nombres de archivo:** `s<AAAAMMDD>_<HHMMSS>[_e-<ejemplar>]_<n>.jpg`.
+  - `split_dataset.py` agrupa por sesión con regex, porque Roboflow renombra los archivos.
+  - `--ejemplares-test` manda objetos físicos completos a test, para medir ejemplares no vistos.
+- **`dataset/data.yaml` no lleva `path`:** con `path: .` ultralytics resolvería contra el directorio actual.
+- **Un `.txt` vacío significa "fondo".** Nunca crearlo para fotos con objetos sin etiquetar; `autolabel.py` y `split_dataset.py` lo respetan.
+- **Entrenamiento en GPU** (Colab/Kaggle) con `scripts/train.py`, que define la augmentation de generalización. El notebook llama a ese script, no duplica código.
+- **`albumentations` instala `opencv-python-headless`**, que rompe `imshow`. En local hay que reinstalar `opencv-python`.
+
 ## TODO principales
 - Dataset propio y `best.pt`. COCO no tiene destornillador.
 - Verificador CNN (bonus) en `src/verifier.py`.

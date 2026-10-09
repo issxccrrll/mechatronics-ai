@@ -3,6 +3,8 @@
 Uso: python scripts/capture.py --clase taza [--source 0]
      --clase mixto  -> escenas con VARIAS clases del reto a la vez
      --clase fondo  -> escenas SIN ninguna clase del reto (negativos)
+     --ejemplar tijeras-verdes -> marca el objeto físico en el nombre del archivo
+       (s20261009_101500_e-tijeras-verdes_0000.jpg) para poder reservarlo como test no visto
 Teclas: espacio = guardar foto, q = salir.
 Cada ejecución es una "sesión"; el nombre del archivo la incluye para dividir por sesión.
 """
@@ -36,6 +38,8 @@ def abrir_camara(source, ancho, alto):
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("--clase", required=True, choices=CLASES + EXTRA)
+    p.add_argument("--ejemplar", default="",
+                   help="nombre del objeto físico (ej. tijeras-verdes); permite reservarlo para test")
     p.add_argument("--source", default="0")
     p.add_argument("--ancho", type=int, default=640, help="misma resolución que el detector")
     p.add_argument("--alto", type=int, default=480)
@@ -45,6 +49,8 @@ def main():
     carpeta = Path(args.salida) / args.clase
     carpeta.mkdir(parents=True, exist_ok=True)
     sesion = datetime.now().strftime("s%Y%m%d_%H%M%S")
+    if args.ejemplar:
+        sesion += "_e-" + args.ejemplar.strip().lower().replace(" ", "-").replace("_", "-")
     cap = abrir_camara(parse_source(args.source), args.ancho, args.alto)
     if not cap.isOpened():
         sys.exit(f"No se pudo abrir la cámara {args.source}")

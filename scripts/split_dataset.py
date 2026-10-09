@@ -3,6 +3,10 @@
 Así fotos casi idénticas de una misma sesión no quedan a la vez en train y test,
 lo que inflaría las métricas.
 
+--ejemplares-test tijeras-verdes taza-azul: manda TODAS las sesiones de esos objetos
+físicos (capturados con capture.py --ejemplar) a test, y ninguna a train/val. Así el test
+mide si el modelo reconoce ejemplares que nunca vio (ej. tijeras de otro color).
+
 Espera:  dataset/raw/<clase>/<sesion>_<n>.jpg  y etiquetas YOLO con el mismo nombre (.txt)
          en dataset/raw/<clase>/ (por ejemplo exportadas desde Roboflow/LabelImg).
 Genera:  dataset/{train,val,test}/{images,labels}/
@@ -18,7 +22,8 @@ RAIZ = Path(__file__).resolve().parent.parent
 EXT = {".jpg", ".jpeg", ".png"}
 
 
-PATRON_SESION = re.compile(r"s\d{8}_\d{6}")
+PATRON_SESION = re.compile(r"s\d{8}_\d{6}(?:_e-[a-z0-9-]+)?")
+PATRON_EJEMPLAR = re.compile(r"_e-([a-z0-9-]+)")
 
 
 def sesion_de(ruta: Path) -> str:
@@ -44,7 +49,10 @@ def main():
     p.add_argument("--val", type=float, default=0.15)
     p.add_argument("--test", type=float, default=0.15)
     p.add_argument("--seed", type=int, default=42)
+    p.add_argument("--ejemplares-test", nargs="*", default=[],
+                   help="objetos físicos reservados solo para test (ej. tijeras-verdes)")
     args = p.parse_args()
+    reservados = {e.lower() for e in args.ejemplares_test}
 
     por_sesion = defaultdict(list)
     for img in Path(args.raw).rglob("*"):
@@ -61,8 +69,19 @@ def main():
     rng = random.Random(args.seed)
     asignacion = {}
     for clase, sesiones in por_clase.items():
+        # Ejemplares reservados -> test completo; la clase ya tiene test "no visto"
+        fijas = [s for s in sesiones if (m := PATRON_EJEMPLAR.search(s)) and m.group(1) in reservados]
+        for s in fijas:
+            asignacion[s] = "test"
+        sesiones = [s for s in sesiones if s not in fijas]
         rng.shuffle(sesiones)
         k = len(sesiones)
+        if fijas:  # el resto solo se reparte entre train y val
+            n_val = max(1, round(k * args.val)) if k >= 2 else 0
+            for i, s in enumerate(sesiones):
+                asignacion[s] = "val" if i < n_val else "train"
+            print(f"[test no visto] {clase}: {len(fijas)} sesión(es) de ejemplares reservados")
+            continue
         n_test = max(1, round(k * args.test)) if k >= 3 else 0
         n_val = max(1, round(k * args.val)) if k >= 3 else 0
         for i, s in enumerate(sesiones):

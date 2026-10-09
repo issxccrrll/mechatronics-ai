@@ -1,6 +1,6 @@
 # Dataset propio para el reto Mechatronics AI (formato YOLO).
 # Generado con scripts/split_dataset.py a partir de dataset/raw/<clase>/.
-path: .            # relativo a este archivo
+# Sin "path": ultralytics usa la carpeta de este archivo (con "path: ." usaría el directorio actual)
 train: train/images
 val: val/images
 test: test/images
