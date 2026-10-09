@@ -1,0 +1,71 @@
+# Configuración central del detector Mechatronics AI.
+# Los argumentos de línea de comandos (--source, --conf, --model, --imgsz) sobrescriben estos valores.
+
+camara:
+  source: 0                 # índice de webcam (0) o URL, ej. http://192.168.1.50:8080/video
+  ancho: 640
+  alto: 480
+  reintentos_max: 0         # 0 = reintentar indefinidamente
+  espera_reintento_s: 2.0
+
+modelo:
+  # .pt o carpeta OpenVINO. OpenVINO es ~2.5x más rápido en CPU (ver README).
+  # Generar con: python scripts/export.py --model models/yolo11n.pt --formatos openvino
+  ruta: models/yolo11n_openvino_model
+  imgsz: 640
+  conf: 0.40                # umbral global de confianza (ajustable con trackbar)
+  iou: 0.5
+  device: cpu
+  tracking: true            # usa ByteTrack de ultralytics para obtener track_id
+  tracker: bytetrack.yaml
+
+# Clases oficiales del reto.
+clases: [taza, botella, tijeras, destornillador, celular]
+
+# Mapeo nombre_del_modelo -> clase oficial.
+# Con yolo11n.pt (COCO) no existe "destornillador"; toda clase no listada => desconocido.
+# Cuando usemos best.pt propio, reemplazar por el mapeo identidad (taza: taza, ...).
+mapeo_clases:
+  cup: taza
+  bottle: botella
+  scissors: tijeras
+  cell phone: celular
+
+verificador:
+  activo: false             # bonus: clasificador CNN propio
+  ruta: models/verificador.pt
+  umbral: 0.5
+
+filtros:
+  unknown_reject:
+    activo: true
+    mostrar_desconocidos: true   # si false, los desconocidos se ocultan en pantalla
+  class_threshold:
+    activo: true
+    umbrales:                    # umbral por clase (sobre el global)
+      taza: 0.45
+      botella: 0.45
+      tijeras: 0.50
+      destornillador: 0.55
+      celular: 0.50
+  area_aspect:
+    activo: true
+    area_min: 0.002              # fracción del área del frame
+    area_max: 0.90
+    aspecto_min: 0.15            # ancho/alto
+    aspecto_max: 6.0
+  persistence:
+    activo: true
+    n: 3                         # aparecer en al menos N ...
+    m: 5                         # ... de los últimos M frames
+    iou_match: 0.4               # emparejamiento por IoU si no hay track_id
+
+ui:
+  ventana: Mechatronics AI
+  trackbars: true
+  mostrar_rechazadas: true
+
+logger:
+  activo: true
+  carpeta: logs
+  incluir_rechazadas: true

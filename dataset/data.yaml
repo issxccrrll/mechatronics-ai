@@ -1,0 +1,13 @@
+# Dataset propio para el reto Mechatronics AI (formato YOLO).
+# Generado con scripts/split_dataset.py a partir de dataset/raw/<clase>/.
+path: .            # relativo a este archivo
+train: train/images
+val: val/images
+test: test/images
+
+names:
+  0: taza
+  1: botella
+  2: tijeras
+  3: destornillador
+  4: celular

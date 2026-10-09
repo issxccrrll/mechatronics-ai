@@ -1,0 +1,13 @@
+# Python 3.11 · versiones exactas (pip freeze, solo paquetes relevantes)
+# torch CPU: el índice extra evita descargar CUDA
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.14.1+cpu
+torchvision==0.29.1+cpu
+ultralytics==8.4.174
+opencv-python==5.0.0.93
+openvino==2026.4.1
+numpy==2.4.6
+PyYAML==6.0.3
+pandas==3.0.6
+pytest==9.1.1
+lap==0.5.13

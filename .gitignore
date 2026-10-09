@@ -1,0 +1,31 @@
+# Entorno
+venv/
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Ultralytics
+runs/
+
+# Pesos y modelos exportados
+*.pt
+*.onnx
+*_openvino_model/
+models/*
+!models/.gitkeep
+
+# Imágenes y etiquetas del dataset (se conserva solo data.yaml)
+dataset/*
+!dataset/data.yaml
+
+# Logs
+logs/
+*.csv
+!metricas.csv
+
+# Sistema / IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
