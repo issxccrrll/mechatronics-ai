@@ -69,13 +69,44 @@ python main.py --model models/best_openvino_model --imgsz 480
 
 ## Dataset y entrenamiento
 
+Las fotos se toman con **la misma webcam de la demo**, a 640×480, en 3 o más sesiones por clase (luz, fondo, distancia y ejemplar distintos).
+- `--clase mixto`: escenas con varios objetos del reto juntos.
+- `--clase fondo`: escenas sin ninguno (negativos, reducen falsos positivos).
+
+`train.py` aplica por defecto augmentation de "cámara barata" (desenfoque, ruido, JPEG, baja resolución y poca luz) con Albumentations.
+- Instálalo con `pip install albumentations`.
+- En local, después ejecuta `pip uninstall -y opencv-python-headless` y `pip install --force-reinstall --no-deps opencv-python==5.0.0.93`. Si no, se rompen las ventanas de OpenCV.
+
 ```powershell
 python scripts/capture.py --clase taza            # espacio guarda, q sale; una sesión por ejecución
+python scripts/capture.py --clase mixto           # varias clases en la misma foto
+python scripts/capture.py --clase fondo           # sin objetos del reto
+python scripts/autolabel.py --vista               # pre-etiqueta; vistas en dataset/revision/
 # etiquetar (Roboflow / LabelImg / CVAT) en formato YOLO, .txt junto a cada imagen
 python scripts/split_dataset.py                   # train/val/test por sesión
 python scripts/train.py --epochs 80 --device cpu  # o notebooks/train_colab.ipynb con GPU
 python scripts/export.py --model runs/mechatronics/weights/best.pt
 ```
+
+### Etiquetado
+
+1. **Pre-etiquetar:** `python scripts/autolabel.py --vista`.
+   - Con `yolo11n.pt` crea los `.txt` de taza, botella, tijeras y celular.
+   - En una carpeta de una sola clase, toda caja recibe la clase de la carpeta.
+   - Si el modelo no detecta nada en una foto, no crea `.txt` y la lista en `dataset/raw/revisar.txt`.
+   - Nunca sobrescribe un `.txt` existente, salvo con `--sobrescribir`.
+2. **Corregir en Roboflow** (gratis; en el plan gratuito los proyectos son públicos):
+   - Crea un proyecto *Object Detection* con las 5 clases.
+   - Arrastra cada carpeta de `dataset/raw/<clase>/` con sus `.jpg`, sus `.txt` y `dataset/raw/classes.txt`. Roboflow reconoce el formato YOLO.
+   - Corrige las cajas malas y dibuja las faltantes: destornillador y las fotos de `revisar.txt`.
+   - Exporta en formato **YOLOv11** y descomprime el zip en `dataset/etiquetado/`.
+3. **Dividir:** `python scripts/split_dataset.py --raw dataset/etiquetado`.
+   - La sesión se reconoce aunque Roboflow renombre los archivos.
+   - Se omiten las fotos sin etiqueta, salvo las de `fondo`.
+
+Atajo para el destornillador:
+- Etiqueta a mano unas 100 fotos y entrena un primer modelo.
+- Luego pre-etiqueta el resto con `python scripts/autolabel.py --model models/best.pt --carpetas destornillador`.
 
 Para usar el modelo propio, en `config.yaml`:
 - Cambia `modelo.ruta`.

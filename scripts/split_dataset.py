@@ -9,6 +9,7 @@ Genera:  dataset/{train,val,test}/{images,labels}/
 """
 import argparse
 import random
+import re
 import shutil
 from collections import defaultdict
 from pathlib import Path
@@ -17,8 +18,23 @@ RAIZ = Path(__file__).resolve().parent.parent
 EXT = {".jpg", ".jpeg", ".png"}
 
 
+PATRON_SESION = re.compile(r"s\d{8}_\d{6}")
+
+
 def sesion_de(ruta: Path) -> str:
-    return f"{ruta.parent.name}/{ruta.stem.rsplit('_', 1)[0]}"
+    """'<carpeta>/<sesion>'. La sesión se busca con regex para tolerar archivos renombrados
+    por herramientas de etiquetado (ej. Roboflow: s20261008_232241_0001_jpg.rf.abc123.jpg)."""
+    m = PATRON_SESION.search(ruta.name)
+    sesion = m.group(0) if m else ruta.stem.rsplit("_", 1)[0]
+    return f"{ruta.parent.name}/{sesion}"
+
+
+def etiqueta_de(img: Path) -> Path:
+    """Etiqueta junto a la imagen, o en la carpeta labels/ hermana (formato de exportación YOLO)."""
+    junto = img.with_suffix(".txt")
+    if junto.exists() or img.parent.name != "images":
+        return junto
+    return img.parent.parent / "labels" / f"{img.stem}.txt"
 
 
 def main():
@@ -54,17 +70,24 @@ def main():
         if k < 3:
             print(f"[aviso] {clase}: solo {k} sesión(es); todo va a train. Captura más sesiones.")
 
-    conteo = defaultdict(int)
+    conteo, sin_etiqueta = defaultdict(int), []
     for s, imgs in por_sesion.items():
         split = asignacion[s]
         for img in imgs:
-            for sub, archivo in (("images", img), ("labels", img.with_suffix(".txt"))):
+            etiqueta = etiqueta_de(img)
+            # Sin .txt YOLO la tomaría como fondo: solo se permite en la carpeta "fondo"
+            if not etiqueta.exists() and img.parent.name != "fondo":
+                sin_etiqueta.append(img)
+                continue
+            for sub, archivo in (("images", img), ("labels", etiqueta)):
                 if archivo.exists():
                     destino = Path(args.salida) / split / sub
                     destino.mkdir(parents=True, exist_ok=True)
                     shutil.copy2(archivo, destino / f"{img.parent.name}_{archivo.name}")
             conteo[split] += 1
     print("Imágenes por split:", dict(conteo))
+    if sin_etiqueta:
+        print(f"[aviso] {len(sin_etiqueta)} imágenes omitidas por no tener etiqueta (.txt). Ej.: {sin_etiqueta[0]}")
 
 
 if __name__ == "__main__":
