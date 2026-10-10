@@ -11,7 +11,7 @@ camara:
 modelo:
   # .pt o carpeta OpenVINO. OpenVINO es ~2.5x más rápido en CPU (ver README).
   # Generar con: python scripts/export.py --model models/yolo11n.pt --formatos openvino
-  ruta: models/yolo11n_openvino_model
+  ruta: models/best_openvino_model   # modelo propio v0 (5 clases); COCO: models/yolo11n_openvino_model
   imgsz: 640
   conf: 0.40                # umbral global de confianza (ajustable con trackbar)
   iou: 0.5
@@ -22,9 +22,8 @@ modelo:
 # Clases oficiales del reto.
 clases: [taza, botella, tijeras, destornillador, celular]
 
-# Mapeo nombre_del_modelo -> clase oficial.
+# Mapeo nombre_del_modelo -> clase oficial (solo para modelos COCO; el modelo propio ya usa nombres oficiales).
 # Con yolo11n.pt (COCO) no existe "destornillador"; toda clase no listada => desconocido.
-# Cuando usemos best.pt propio, reemplazar por el mapeo identidad (taza: taza, ...).
 mapeo_clases:
   cup: taza
   bottle: botella

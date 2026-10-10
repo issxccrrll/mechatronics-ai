@@ -15,6 +15,10 @@ datasets/
 *_openvino_model/
 models/*
 !models/.gitkeep
+# Entregables del modelo propio (la ficha exige incluir los pesos)
+!models/best.pt
+!models/best.onnx
+!models/best_openvino_model/
 
 # Copias locales y paquetes del dataset
 mechatronics-ai/
