@@ -25,34 +25,17 @@ class Camara:
         self._hilo = threading.Thread(target=self._bucle, daemon=True)
         self._hilo.start()
 
-    @staticmethod
-    def _crear_captura(source):
-        if isinstance(source, int) and platform.system() == "Windows":
-            return cv2.VideoCapture(source, cv2.CAP_DSHOW)
-        if isinstance(source, str) and "://" in source:
-            # Timeouts para que una cámara IP caída no bloquee el hilo indefinidamente
-            return cv2.VideoCapture(source, cv2.CAP_FFMPEG,
-                                    [cv2.CAP_PROP_OPEN_TIMEOUT_MSEC, 5000, cv2.CAP_PROP_READ_TIMEOUT_MSEC, 5000])
-        return cv2.VideoCapture(source)
-
-    def candidatos(self) -> list:
-        """Fuentes a probar: la pedida y, si es una webcam (0-9), las demás webcams 0-3.
-        Windows a veces cambia el número de la cámara (p. ej. al aparecer una cámara virtual)."""
-        if isinstance(self.source, int) and 0 <= self.source <= 9:
-            return [self.source] + [i for i in range(4) if i != self.source]
-        return [self.source]
-
     def _abrir(self) -> bool:
-        for source in self.candidatos():
-            cap = self._crear_captura(source)
-            # Debe entregar una imagen real: una cámara ocupada por otro programa "abre" pero no lee
-            if cap.isOpened() and cap.read()[0]:
-                if source != self.source:
-                    print(f"[camara] La cámara {self.source} no responde; usando la cámara {source}")
-                    self.source = source
-                break
-            cap.release()
+        if isinstance(self.source, int) and platform.system() == "Windows":
+            cap = cv2.VideoCapture(self.source, cv2.CAP_DSHOW)
+        elif isinstance(self.source, str) and "://" in self.source:
+            # Timeouts para que una cámara IP caída no bloquee el hilo indefinidamente
+            cap = cv2.VideoCapture(self.source, cv2.CAP_FFMPEG,
+                                   [cv2.CAP_PROP_OPEN_TIMEOUT_MSEC, 5000, cv2.CAP_PROP_READ_TIMEOUT_MSEC, 5000])
         else:
+            cap = cv2.VideoCapture(self.source)
+        if not cap.isOpened():
+            cap.release()
             return False
         cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.ancho)
         cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.alto)

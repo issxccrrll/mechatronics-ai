@@ -110,8 +110,8 @@ python main.py --source 0
 ```
 **Qué pasa:** aparece `Calentando modelo...` (unos 10 s la primera vez) y se abre la ventana
 **Mechatronics AI** con la cámara. Pon un objeto frente a la cámara, quieto 1–2 s. Para salir, presiona `q`.
-- Si la cámara pedida no responde, el detector **prueba solo las cámaras 0 a 3** y usa la primera que entregue imagen (Windows a veces cambia el número de la cámara).
-- Ventana negra con *"Sin senal. Reintentando conexion"*: ninguna cámara está libre. Cierra Teams, Zoom o la app Cámara y vuelve a ejecutar.
+- Ventana negra con *"Sin senal. Reintentando conexion"*: otro programa usa la cámara (cierra Teams,
+  Zoom o la app Cámara) o la cámara tiene otro número: prueba `python main.py --source 1`.
 
 ### Linux o macOS
 
