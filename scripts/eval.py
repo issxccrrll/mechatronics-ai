@@ -42,6 +42,24 @@ def matriz_md(res) -> str:
     return tabla_md(df)
 
 
+def preparar_data_yaml(ruta: Path) -> str:
+    """El repo solo incluye dataset/test. Ultralytics exige que existan train y val aunque se evalúe
+    test, así que si faltan se apuntan a test en un yaml temporal (no afecta las métricas de test)."""
+    cfg = yaml.safe_load(ruta.read_text(encoding="utf-8"))
+    base = ruta.parent
+    faltan = [k for k in ("train", "val") if not (base / cfg[k]).exists()]
+    if not faltan:
+        return str(ruta)
+    cfg["path"] = str(base.resolve())
+    for k in faltan:
+        cfg[k] = cfg["test"]
+    tmp = RAIZ / "runs" / "data_eval.yaml"
+    tmp.parent.mkdir(exist_ok=True)
+    tmp.write_text(yaml.safe_dump(cfg, allow_unicode=True), encoding="utf-8")
+    print(f"[eval] Sin {faltan} en el dataset: se usa test en su lugar solo para cargar ({tmp}).")
+    return str(tmp)
+
+
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("--model", default="models/best.pt")
@@ -55,7 +73,8 @@ def main():
         args.conf_operacion = yaml.safe_load((RAIZ / "config.yaml").read_text(encoding="utf-8"))["modelo"]["conf"]
 
     modelo = YOLO(args.model)
-    comun = dict(data=args.data, split="test", imgsz=args.imgsz, device="cpu", project=str(RAIZ / "runs"))
+    datos = preparar_data_yaml(Path(args.data))
+    comun = dict(data=datos, split="test", imgsz=args.imgsz, device="cpu", project=str(RAIZ / "runs"))
     res = modelo.val(conf=0.001, name="eval", exist_ok=True, **comun)
     res_op = modelo.val(conf=args.conf_operacion, name="eval_operacion", exist_ok=True, **comun)
 

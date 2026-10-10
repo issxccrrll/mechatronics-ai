@@ -27,6 +27,8 @@ dataset.zip
 # Imágenes y etiquetas del dataset (se conserva solo data.yaml)
 dataset/*
 !dataset/data.yaml
+# Conjunto de prueba separado (entregable de la ficha; eval.py lo usa)
+!dataset/test/
 
 # Logs
 logs/
