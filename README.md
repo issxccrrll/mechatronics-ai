@@ -155,6 +155,7 @@ python main.py --model models/best_openvino_model --imgsz 480
 
 - Tecla **q**: salir.
 - **Trackbars** `Umbral %` y `Persistencia N`: umbral global de confianza y persistencia, ajustables en vivo.
+- **Al cerrar con `q`:** se imprime cuántos objetos distintos de cada clase pasaron (IDs de seguimiento únicos, vistos 25 cuadros o más) y se guarda en `logs/detecciones_<fecha>_conteo.csv`, junto al registro completo `logs/detecciones_<fecha>.csv`.
 - **Colores**: verde = aceptada, rojo = rechazada (con el filtro que la rechazó), gris = desconocido.
 - **Contador por clase**: panel en la esquina inferior izquierda con el conteo de objetos aceptados por clase. Configurable en `config.yaml > ui > mostrar_contador_clases`.
 - **ID de seguimiento**: cada detección muestra su ID de ByteTrack (`taza #3 0.87`). Configurable en `config.yaml > ui > mostrar_id`.

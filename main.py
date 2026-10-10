@@ -3,6 +3,7 @@ import time
 
 from src.camera import Camara
 from src.config import cargar_config
+from src.conteo import resumen_sesion
 from src.detector import YoloDetector
 from src.filters import ClassThresholdFilter, PersistenceFilter, aplicar_filtros, construir_filtros
 from src.logger import DetectionLogger
@@ -71,6 +72,11 @@ def main():
         ui.cerrar()
         if t_inicio and frames > 1:
             print(f"[main] {frames} frames, FPS promedio {frames / (time.perf_counter() - t_inicio):.1f}")
+        if logger.activo:
+            try:  # el conteo nunca debe impedir el cierre
+                resumen_sesion(logger.ruta)
+            except Exception as e:
+                print(f"[conteo] No se pudo generar el resumen: {e}")
         print("[main] cerrado limpiamente")
 
 
