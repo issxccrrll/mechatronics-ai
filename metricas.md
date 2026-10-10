@@ -1,6 +1,6 @@
 # Métricas
 
-Modelo: `models/best.pt` · split: **test** (separado de train/val) · fecha: 2026-10-09
+Modelo: `models/best.pt` · split: **test** (separado de train/val) · fecha: 2026-10-10
 
 Reproducir: `python scripts/eval.py --model models/best.pt`
 
@@ -8,35 +8,35 @@ Reproducir: `python scripts/eval.py --model models/best.pt`
 
 | clase | precision | recall | mAP50 | mAP50-95 |
 |---|---|---|---|---|
-| todas | 0.8562 | 0.8064 | 0.8417 | 0.6619 |
-| taza | 0.6489 | 0.8306 | 0.7588 | 0.6505 |
-| botella | 0.9655 | 0.9286 | 0.9907 | 0.6628 |
-| tijeras | 0.8392 | 0.5402 | 0.6608 | 0.5261 |
-| destornillador | 0.8908 | 0.7692 | 0.8487 | 0.5966 |
-| celular | 0.9365 | 0.9634 | 0.9493 | 0.8735 |
+| todas | 0.7799 | 0.6951 | 0.7404 | 0.5362 |
+| taza | 0.6485 | 0.7566 | 0.7467 | 0.6113 |
+| botella | 0.7543 | 0.438 | 0.5032 | 0.2051 |
+| tijeras | 0.7041 | 0.7083 | 0.7415 | 0.4667 |
+| destornillador | 0.8815 | 0.676 | 0.7839 | 0.5454 |
+| celular | 0.9109 | 0.8966 | 0.9267 | 0.8526 |
 
-## Precision y recall al umbral de operación (conf 0.4)
+## Precision y recall al umbral de operación (conf 0.3)
 
 | clase | precision | recall |
 |---|---|---|
-| todas | 0.8743 | 0.7807 |
-| taza | 0.6422 | 0.7865 |
-| botella | 1.0 | 0.8929 |
-| tijeras | 0.8824 | 0.5172 |
-| destornillador | 0.9062 | 0.7436 |
-| celular | 0.9405 | 0.9634 |
+| todas | 0.7799 | 0.6951 |
+| taza | 0.6485 | 0.7566 |
+| botella | 0.7543 | 0.438 |
+| tijeras | 0.7041 | 0.7083 |
+| destornillador | 0.8815 | 0.676 |
+| celular | 0.9109 | 0.8966 |
 
-## Matriz de confusión (conf 0.4)
+## Matriz de confusión (conf 0.3)
 
 Filas = predicción, columnas = clase real; "fondo" = sin objeto.
 
 | pred \ real | taza | botella | tijeras | destornillador | celular | fondo |
 |---|---|---|---|---|---|---|
-| taza | 70 | 1 | 0 | 0 | 0 | 38 |
-| botella | 0 | 24 | 0 | 0 | 0 | 1 |
-| tijeras | 0 | 0 | 15 | 0 | 0 | 2 |
-| destornillador | 0 | 0 | 0 | 59 | 0 | 5 |
-| celular | 0 | 0 | 1 | 0 | 79 | 4 |
-| fondo | 19 | 3 | 13 | 19 | 3 | 0 |
+| taza | 79 | 16 | 0 | 0 | 1 | 28 |
+| botella | 0 | 61 | 0 | 0 | 1 | 26 |
+| tijeras | 0 | 0 | 35 | 0 | 0 | 16 |
+| destornillador | 0 | 0 | 3 | 108 | 0 | 12 |
+| celular | 0 | 0 | 0 | 0 | 78 | 13 |
+| fondo | 21 | 44 | 10 | 35 | 7 | 0 |
 
 ![Matriz de confusión](docs/confusion_matrix.png)

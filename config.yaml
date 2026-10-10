@@ -43,9 +43,9 @@ filtros:
     activo: true
     umbrales:                    # umbral por clase (sobre el global)
       taza: 0.30
-      botella: 0.30
-      tijeras: 0.40
-      destornillador: 0.32
+      botella: 0.33
+      tijeras: 0.50
+      destornillador: 0.30
       celular: 0.30
   area_aspect:
     activo: true
