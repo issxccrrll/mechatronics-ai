@@ -56,8 +56,15 @@ def integrar_carpeta(export: Path, nuestras: list[str], raw_idx: dict, sobrescri
             v = ln.split()
             if len(v) == 5:
                 lineas.append(" ".join([str(traduccion[int(v[0])])] + v[1:]))
+            elif len(v) >= 7 and len(v) % 2 == 1:
+                # Polígono (Smart Polygon de Roboflow): "cls x1 y1 x2 y2 ..." -> caja que lo encierra
+                xs, ys = [float(a) for a in v[1::2]], [float(a) for a in v[2::2]]
+                cx, cy = (min(xs) + max(xs)) / 2, (min(ys) + max(ys)) / 2
+                w, h = max(xs) - min(xs), max(ys) - min(ys)
+                lineas.append(f"{traduccion[int(v[0])]} {cx:.6f} {cy:.6f} {w:.6f} {h:.6f}")
+                stats["poligonos_convertidos"] += 1
             elif v:
-                stats["linea_no_caja"] += 1   # polígonos u otros formatos: se ignoran
+                stats["linea_no_valida"] += 1
         if not lineas and foto.parent.name != "fondo":
             stats["vacia_omitida"] += 1
             continue
