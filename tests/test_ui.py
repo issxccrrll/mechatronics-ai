@@ -7,7 +7,8 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from src.types import Detection, Estado
-from src.ui import contar_por_clase, dibujar_contador, texto_etiqueta
+from src.ui import (ALTO_BARRA, color_clase, color_de_caja, color_insignia_fps,
+                    contar_por_clase, dibujar_contador, geom_etiqueta, texto_etiqueta)
 
 CLASES = ["taza", "botella", "tijeras", "destornillador", "celular"]
 
@@ -81,3 +82,53 @@ def test_dibujar_contador_zona_correcta_sin_tocar_barra_superior():
 
     # La esquina inferior izquierda debe contener píxeles dibujados
     assert np.any(frame[300:480, 0:200] != 0)
+
+
+def test_color_clase_paleta_distinta():
+    colores = [color_clase(c) for c in CLASES]
+    assert len(set(colores)) == 5
+    assert color_clase("desconocido") != color_clase("taza")
+
+
+def test_color_de_caja_estado():
+    ok = Detection("taza", 0.9, (10, 10, 50, 50), estado=Estado.ACEPTADA)
+    rech = Detection("taza", 0.3, (10, 10, 50, 50), estado=Estado.RECHAZADA, rechazada_por="Filtro")
+    desc = Detection("desconocido", 0.8, (10, 10, 50, 50), estado=Estado.DESCONOCIDO)
+    assert color_de_caja(ok) == color_clase("taza")
+    assert color_de_caja(rech) == (50, 50, 230)
+    assert color_de_caja(desc) == (155, 155, 155)
+
+
+def test_color_insignia_fps():
+    assert color_insignia_fps(27.4) == (60, 200, 70)
+    assert color_insignia_fps(20.0) == (60, 200, 70)
+    assert color_insignia_fps(17.0) == (0, 165, 255)
+    assert color_insignia_fps(15.0) == (0, 165, 255)
+    assert color_insignia_fps(14.9) == (50, 50, 230)
+
+
+def test_geom_etiqueta_caja_en_borde_superior_queda_dentro():
+    bbox = (40, 10, 180, 170)
+    shape = (480, 640, 3)
+    x1, y1, x2, y2 = geom_etiqueta(bbox, "taza #3 0.91", shape)
+    assert y1 >= 0
+    assert y2 <= 480
+    assert x1 >= 0
+    assert x2 <= 640
+    # No cabe arriba (10 px); la pildora empieza en el borde de la caja o dentro.
+    assert y1 >= bbox[1]
+
+
+def test_geom_etiqueta_con_espacio_arriba_va_encima():
+    bbox = (220, 90, 300, 330)
+    x1, y1, x2, y2 = geom_etiqueta(bbox, "botella #7 0.77", (480, 640, 3))
+    assert y2 <= bbox[1]
+    assert y1 >= 0
+
+
+def test_geom_etiqueta_no_queda_bajo_la_barra_superior():
+    # Caja que empieza dentro de la barra (y=15 < ALTO_BARRA): la etiqueta debe quedar visible debajo de la barra
+    bbox = (100, 15, 260, 200)
+    _, y1, _, y2 = geom_etiqueta(bbox, "celular #12 0.88", (480, 640, 3))
+    assert y1 >= ALTO_BARRA
+    assert y2 <= 480
