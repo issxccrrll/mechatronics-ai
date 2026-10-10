@@ -116,6 +116,10 @@ Entrenar en CPU es inviable con miles de fotos. Se entrena en GPU con `notebooks
    - En una carpeta de una sola clase, toda caja recibe la clase de la carpeta.
    - Si el modelo no detecta nada en una foto, no crea `.txt` y la lista en `dataset/raw/revisar.txt`.
    - Nunca sobrescribe un `.txt` existente, salvo con `--sobrescribir`.
+   - Para clases que COCO no conoce (destornillador) o donde falla (celular visto por detrás), usar el pre-etiquetado *zero-shot* con OWLv2:
+     - `python scripts/autolabel_zeroshot.py --carpeta destornillador --texto "a photo of a screwdriver" --vista`
+     - Requiere `pip install transformers` y tarda ~7 s por imagen en CPU.
+     - Escribe una caja por imagen y marca como "REVISAR" las de confianza baja.
 2. **Corregir en Roboflow** (gratis; en el plan gratuito los proyectos son públicos):
    - Crea un proyecto *Object Detection* con las 5 clases.
    - Arrastra cada carpeta de `dataset/raw/<clase>/` con sus `.jpg`, sus `.txt` y `dataset/raw/classes.txt`. Roboflow reconoce el formato YOLO.
@@ -156,6 +160,8 @@ python scripts/benchmark_fps.py --model models/yolo11n_openvino_model
 - [Exportación a OpenVINO](https://docs.ultralytics.com/integrations/openvino/)
 - [Tracking (ByteTrack)](https://docs.ultralytics.com/modes/track/)
 - Dataset COCO (pesos preentrenados).
+- [OWLv2](https://huggingface.co/google/owlv2-base-patch16-ensemble) (Minderer et al., 2023): pre-etiquetado zero-shot.
+- [Albumentations](https://albumentations.ai/): aumento de datos.
 
 ## Limitaciones conocidas
 

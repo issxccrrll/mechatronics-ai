@@ -16,6 +16,10 @@ datasets/
 models/*
 !models/.gitkeep
 
+# Copias locales y paquetes del dataset
+mechatronics-ai/
+dataset.zip
+
 # Imágenes y etiquetas del dataset (se conserva solo data.yaml)
 dataset/*
 !dataset/data.yaml
