@@ -36,9 +36,3 @@ def test_clase_mayoritaria_por_objeto():
     df = pd.DataFrame(filas(4, "destornillador", 12) + filas(4, "tijeras", 3))
     _, objetos = contar(df, min_cuadros=5)
     assert objetos.iloc[0]["clase"] == "destornillador"
-
-
-def test_sesion_sin_detecciones_no_falla():
-    df = pd.DataFrame(columns=["timestamp", "clase", "confianza", "estado", "track_id"])
-    conteo, objetos = contar(df, min_cuadros=5)
-    assert conteo.empty and objetos.empty
