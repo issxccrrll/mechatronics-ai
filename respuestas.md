@@ -183,12 +183,13 @@ vivo con un trackbar):
 | taza           |   0.30 |
 | botella        |   0.33 |
 | tijeras        |   0.50 |
-| destornillador |   0.30 |
+| destornillador |   0.45 |
 | celular        |   0.30 |
 
 Los umbrales se **calibraron con datos** (`scripts/calibrar_umbrales.py`): para cada clase, el
 umbral más bajo cuyo F1 en validación queda a menos de 0.02 del máximo. El de tijeras salió 0.65 y
-se limitó a 0.50, porque validación casi no tiene tijeras en la mano. El motivo de calibrar fue una
+se limitó a 0.50, porque validación casi no tiene tijeras en la mano. El de destornillador se subió a 0.45 tras la prueba en vivo, donde aparecían
+detecciones falsas en el fondo: en validación su precisión pasa de 0.78 a 0.87 y su recall de 0.78 a 0.71. El motivo de calibrar fue una
 prueba en vivo: el registro CSV mostró que los objetos en la mano se detectaban con confianza
 0.34–0.40 y los umbrales anteriores (0.45–0.55, puestos a mano) los descartaban.
 
@@ -203,7 +204,7 @@ proporciones que no corresponden a ninguna de las 5 clases.
 
 ### 4. PersistenceFilter
 
-Un objeto solo se acepta si aparece en al menos **3 de los últimos 5 frames**. Usa el
+Un objeto solo se acepta si aparece en al menos **4 de los últimos 5 frames**. Usa el
 `track_id` de **ByteTrack** (tracking integrado de Ultralytics). Si no hay ID, empareja por IoU
 de 0.4 o más. Elimina los falsos positivos más comunes en video: detecciones de 1–2 frames por
 ruido, movimiento o reflejos.

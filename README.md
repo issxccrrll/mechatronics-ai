@@ -138,13 +138,13 @@ El pipeline aplica 4 filtros en cascada (patrón Strategy, cada uno activable en
 Cualquier clase que no sea una de las 5 oficiales pasa a estado `desconocido`. Garantiza la regla del reto: nunca se asigna una clase oficial a un objeto ajeno.
 
 ### 2. ClassThresholdFilter
-Umbral de confianza individual por clase (taza 0.30, botella 0.33, tijeras 0.50, destornillador 0.30, celular 0.30), nunca inferior al umbral global (0.30, ajustable en vivo con el trackbar). **Calibrados con datos** con `scripts/calibrar_umbrales.py`: el umbral más bajo cuyo F1 en validación queda a menos de 0.02 del máximo (tijeras limitado a 0.50 para no perder tijeras en la mano).
+Umbral de confianza individual por clase (taza 0.30, botella 0.33, tijeras 0.50, destornillador 0.45, celular 0.30), nunca inferior al umbral global (0.30, ajustable en vivo con el trackbar). **Calibrados con datos** con `scripts/calibrar_umbrales.py`: el umbral más bajo cuyo F1 en validación queda a menos de 0.02 del máximo (tijeras limitado a 0.50 para no perder tijeras en la mano; destornillador subido a 0.45 tras la prueba en vivo: precisión 0.87 y recall 0.71 en validación, frente a 0.78 y 0.78 con 0.30).
 
 ### 3. AreaAspectFilter
 Rechaza cajas con área menor al 0.2% o mayor al 90% del frame, o con relación de aspecto fuera de 0.15–6.0. Elimina cajas físicamente imposibles.
 
 ### 4. PersistenceFilter
-Un objeto solo se acepta si aparece en al menos **3 de los últimos 5 frames**, usando el `track_id` de ByteTrack. Sin ID, empareja por IoU ≥ 0.4. Elimina los falsos positivos más comunes en video: detecciones de 1–2 frames por ruido o reflejos.
+Un objeto solo se acepta si aparece en al menos **4 de los últimos 5 frames**, usando el `track_id` de ByteTrack. Sin ID, empareja por IoU ≥ 0.4. Elimina los falsos positivos más comunes en video: detecciones de 1–2 frames por ruido o reflejos.
 
 ### Evidencia con datos
 
