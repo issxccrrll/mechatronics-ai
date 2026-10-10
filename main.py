@@ -1,4 +1,5 @@
 """Punto de entrada: Cámara -> Detector -> Verificador -> Filtros -> UI + Logger."""
+import os
 import time
 
 from src.camera import Camara
@@ -74,9 +75,11 @@ def main():
             print(f"[main] {frames} frames, FPS promedio {frames / (time.perf_counter() - t_inicio):.1f}")
         if logger.activo:
             try:  # el conteo nunca debe impedir el cierre
-                resumen_sesion(logger.ruta)
+                destino = resumen_sesion(logger.ruta)
+                if cfg["logger"].get("abrir_conteo", False) and hasattr(os, "startfile"):
+                    os.startfile(destino)  # Windows: lo abre con la app asociada (Excel)
             except Exception as e:
-                print(f"[conteo] No se pudo generar el resumen: {e}")
+                print(f"[conteo] No se pudo generar o abrir el resumen: {e}")
         print("[main] cerrado limpiamente")
 
 
