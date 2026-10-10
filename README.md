@@ -16,7 +16,7 @@ Cámara (hilo) → Detector (YOLO11n) → Verificador (opcional) → Filtros →
 | `src/detector.py` | `YoloDetector` con `.pt` u OpenVINO; mapeo de clases desde `config.yaml`. |
 | `src/verifier.py` | Stub del clasificador CNN propio (bonus). Desactivado por defecto. |
 | `src/filters.py` | Filtros anti falsos positivos activables: desconocidos, umbral por clase, área y aspecto, persistencia N de M. |
-| `src/ui.py` | Cajas, etiquetas, FPS, contadores y trackbars. |
+| `src/ui.py` | Cajas, etiquetas, FPS, contador por clase, ID de seguimiento y trackbars. |
 | `src/logger.py` | Escribe un CSV por sesión en `logs/`. |
 
 ## Instalación (Windows, Python 3.11)
@@ -32,14 +32,22 @@ pip install -r requirements.txt
 
 En Linux o macOS: `python3.11 -m venv venv && source venv/bin/activate` y los mismos `pip install`.
 
-Prepara el modelo y expórtalo a OpenVINO, que es unas 2.5 veces más rápido en CPU:
+Los pesos del modelo propio ya vienen incluidos en `models/`:
+- `models/best_openvino_model/` — modelo OpenVINO (por defecto en `config.yaml`).
+- `models/best.pt` — pesos PyTorch.
+- `models/best.onnx` — exportación ONNX (bonus).
 
-```powershell
-cd models; python -c "from ultralytics import YOLO; YOLO('yolo11n.pt')"; cd ..
-python scripts/export.py --model models/yolo11n.pt --formatos openvino
-```
+Si la carpeta OpenVINO no existe, el detector usa automáticamente `best.pt` (más lento).
+**No es necesario descargar ni entrenar nada para ejecutar el detector.**
 
-Si la carpeta OpenVINO no existe, el detector usa automáticamente el `.pt`.
+> **Nota:** Para usar el modelo COCO de respaldo (sin destornillador), descarga los pesos base y
+> expórtalos a OpenVINO. Esto solo hace falta para el pre-etiquetado (`autolabel.py`) o para
+> comparar con el modelo COCO:
+> ```powershell
+> cd models; python -c "from ultralytics import YOLO; YOLO('yolo11n.pt')"; cd ..
+> python scripts/export.py --model models/yolo11n.pt --formatos openvino
+> python main.py --model models/yolo11n_openvino_model
+> ```
 
 ## Conexión de cámara
 
@@ -65,7 +73,85 @@ python main.py --model models/best_openvino_model --imgsz 480
 - Tecla **q**: salir.
 - **Trackbars**: umbral global (%) y persistencia N, ajustables en vivo.
 - **Colores**: verde = aceptada, rojo = rechazada (con el filtro que la rechazó), gris = desconocido.
+- **Contador por clase**: panel en la esquina inferior izquierda con el conteo de objetos aceptados por clase. Configurable en `config.yaml > ui > mostrar_contador_clases`.
+- **ID de seguimiento**: cada detección muestra su ID de ByteTrack (`taza #3 0.87`). Configurable en `config.yaml > ui > mostrar_id`.
 - Toda la configuración está en `config.yaml`.
+
+### Ensayo de las 20 escenas
+
+El script `scripts/ensayo_escenas.py` permite ensayar las 20 escenas que evaluará el jurado, usando el mismo pipeline del detector, y calcula el porcentaje de aciertos (meta: 85%).
+
+```powershell
+python scripts/ensayo_escenas.py --listar              # muestra las 20 escenas sin abrir cámara
+python scripts/ensayo_escenas.py                       # abre la cámara con detección en vivo
+```
+
+Durante el ensayo:
+- **ESPACIO**: evalúa la escena actual (captura 30 frames y calcula la moda).
+- **s**: salta la escena (no cuenta en el total).
+- **q**: termina antes.
+
+Al finalizar imprime el resumen en consola y guarda un CSV en `logs/ensayo_AAAAMMDD_HHMMSS.csv`.
+
+## Evaluación
+
+```powershell
+pytest                                                  # pruebas unitarias
+python scripts/eval.py --model models/best.pt           # escribe metricas.md y metricas.csv
+python scripts/benchmark_fps.py --model models/best_openvino_model
+```
+
+### Resultados del modelo v0 en test (287 imágenes)
+
+| clase          | precision | recall | mAP50  | mAP50-95 |
+|----------------|----------:|-------:|-------:|---------:|
+| todas          |    0.8562 | 0.8064 | 0.8417 |   0.6619 |
+| taza           |    0.6489 | 0.8306 | 0.7588 |   0.6505 |
+| botella        |    0.9655 | 0.9286 | 0.9907 |   0.6628 |
+| tijeras        |    0.8392 | 0.5402 | 0.6608 |   0.5261 |
+| destornillador |    0.8908 | 0.7692 | 0.8487 |   0.5966 |
+| celular        |    0.9365 | 0.9634 | 0.9493 |   0.8735 |
+
+Al umbral de operación (conf 0.40): precision **0.8743**, recall **0.7807**.
+
+Reproducir: `python scripts/eval.py --model models/best.pt`. Detalles completos en [`metricas.md`](metricas.md).
+
+### Rendimiento en CPU (Intel Core i7-13620H)
+
+| Motor    | FPS de inferencia | FPS en pipeline completo (en vivo) |
+|----------|------------------:|-----------------------------------:|
+| OpenVINO |           ~32–35  |                        17.8–29.8   |
+| PyTorch  |           ~22.5   |                                 —  |
+
+Supera el mínimo de 15 FPS requerido por el reto.
+
+## Justificación de la técnica contra falsos positivos
+
+El pipeline aplica 4 filtros en cascada (patrón Strategy, cada uno activable en `config.yaml`, definidos en `src/filters.py`):
+
+### 1. UnknownRejectFilter
+Cualquier clase que no sea una de las 5 oficiales pasa a estado `desconocido`. Garantiza la regla del reto: nunca se asigna una clase oficial a un objeto ajeno.
+
+### 2. ClassThresholdFilter
+Umbral de confianza individual por clase (taza 0.45, botella 0.45, tijeras 0.50, destornillador 0.55, celular 0.50), nunca inferior al umbral global (0.40, ajustable en vivo con trackbar). Las clases que más se confunden llevan umbral más estricto.
+
+### 3. AreaAspectFilter
+Rechaza cajas con área menor al 0.2% o mayor al 90% del frame, o con relación de aspecto fuera de 0.15–6.0. Elimina cajas físicamente imposibles.
+
+### 4. PersistenceFilter
+Un objeto solo se acepta si aparece en al menos **3 de los últimos 5 frames**, usando el `track_id` de ByteTrack. Sin ID, empareja por IoU ≥ 0.4. Elimina los falsos positivos más comunes en video: detecciones de 1–2 frames por ruido o reflejos.
+
+### Evidencia con datos
+
+La **matriz de confusión a conf 0.40** muestra que casi no hay confusiones entre clases oficiales: solo 1 botella predicha como taza y 1 tijeras predicha como celular. Los errores principales son predicciones sobre fondo (objetos no etiquetados o falsos positivos aislados) y objetos no detectados.
+
+La precision sube de **0.856** (conf 0.001, sin filtro de umbral) a **0.874** (conf 0.40, con el ClassThresholdFilter activo), confirmando que el umbral por clase reduce falsos positivos sin perder demasiado recall.
+
+El efecto individual de cada filtro se medirá con el ensayo de las 20 escenas del jurado. Todavía no se ha ejecutado un ensayo completo con el modelo v0.
+
+### Riesgo y mitigación
+
+Un modelo de 5 clases tiende a asignar la clase más parecida a objetos ajenos (por ejemplo, una pluma como destornillador). Mitigación: fotos de fondo (negativos) en el dataset, umbrales por clase estrictos, filtro de persistencia temporal y calibración de umbrales con la curva precision-recall.
 
 ## Dataset y entrenamiento
 
@@ -105,9 +191,9 @@ Para demostrar que el modelo reconoce objetos que nunca vio:
 
 ### Entrenamiento en la nube
 
-Entrenar en CPU es inviable con miles de fotos. Se entrena en GPU con `notebooks/train_colab.ipynb`:
+Entrenar en CPU es inviable con miles de fotos (una época tarda ~112 s en CPU, unas 11–12 horas para el entrenamiento completo). Se entrena en **GPU Tesla T4** con `notebooks/train_colab.ipynb`:
 - El notebook clona el repo, copia `dataset.zip` desde Drive y ejecuta `scripts/train.py --device 0`.
-- La **inferencia** sigue en CPU, como exige el reto.
+- La **inferencia** sigue en CPU, como exige el reto, gracias a la exportación a OpenVINO.
 
 ### Etiquetado
 
@@ -137,42 +223,47 @@ Para usar el modelo propio, en `config.yaml`:
 - Cambia `modelo.ruta`.
 - Reemplaza `mapeo_clases` por el mapeo identidad (`taza: taza`, …).
 
-## Evaluación
-
-```powershell
-pytest                                             # pruebas de filtros
-python scripts/eval.py --model models/best.pt      # escribe metricas.md y metricas.csv
-python scripts/benchmark_fps.py --model models/yolo11n_openvino_model
-```
-
 ## Decisiones técnicas
 
-- **YOLO11n:** el modelo más ligero de la familia, suficiente para cumplir 15 FPS o más en CPU.
-- **OpenVINO por defecto:** unos 62 FPS de inferencia frente a unos 22 FPS con PyTorch en esta laptop.
-- **Cámara en un hilo:** siempre se procesa el frame más reciente, sin acumular retraso.
+- **YOLO11n con transfer learning:** 4 de 5 clases ya están en COCO; partir de pesos preentrenados reduce el tiempo de entrenamiento y permite converger con un dataset pequeño (~2 000 imágenes).
+- **Modelo propio (`best.pt`):** resuelve la falta de destornillador en COCO y devuelve directamente los nombres oficiales sin mapeo.
+- **OpenVINO por defecto:** ~32–35 FPS de inferencia del modelo propio frente a ~22.5 FPS con PyTorch. Pipeline completo en vivo: 17.8–29.8 FPS.
+- **Entrenamiento en la nube, inferencia en CPU:** entrenar en GPU Tesla T4 (Colab) tarda minutos; en CPU tardaría 11–12 horas. La inferencia sí corre en CPU, como exige el reto.
+- **Cámara en un hilo:** siempre se procesa el frame más reciente, sin acumular retraso. Reconexión automática con mensaje en pantalla.
 - **Umbral bajo en el modelo (0.25) y umbral real en los filtros:** así el trackbar puede bajar o subir el umbral en vivo.
 - **Persistencia N de M con ByteTrack:** elimina falsos positivos de un solo frame. Si no hay `track_id`, empareja por IoU.
 - **Split por sesión de captura:** evita fuga de datos entre train y test.
+- **Exportación a ONNX (bonus):** `models/best.onnx` incluido en el repo.
 
 ## Fuentes
 
 - [Ultralytics YOLO11](https://docs.ultralytics.com/models/yolo11/)
 - [Exportación a OpenVINO](https://docs.ultralytics.com/integrations/openvino/)
+- [ONNX](https://onnx.ai/) — formato de exportación interoperable.
 - [Tracking (ByteTrack)](https://docs.ultralytics.com/modes/track/)
-- Dataset COCO (pesos preentrenados).
+- Dataset [COCO](https://cocodataset.org/) (pesos preentrenados).
 - [OWLv2](https://huggingface.co/google/owlv2-base-patch16-ensemble) (Minderer et al., 2023): pre-etiquetado zero-shot.
 - [Albumentations](https://albumentations.ai/): aumento de datos.
+- [Roboflow](https://roboflow.com/): revisión y corrección manual de etiquetas.
+- [Google Colab](https://colab.research.google.com/): entrenamiento en la nube con GPU.
+
+Se usaron asistentes de IA (Claude y Gemini) como apoyo en el desarrollo y la documentación; el código fue revisado y probado por el equipo.
 
 ## Limitaciones conocidas
 
-- Con los pesos COCO **no existe la clase destornillador**: hace falta el modelo propio (`best.pt`).
-- COCO no incluye "tijeras de mecánico" ni objetos de taller específicos. Es posible confundir celular con control remoto, o taza con vaso.
+- **Tijeras con recall bajo:** mAP50 de 0.66 y recall de 0.54. Se necesitan más fotos con variedad de tijeras (distintos colores, tamaños y posiciones).
+- **Tazas sobre fondo:** 38 predicciones de "taza" sobre fondo en la matriz de confusión. Probablemente corresponden en buena parte a tazas reales no etiquetadas por el pre-etiquetado automático. Se corregirá con revisión manual.
+- **Test por bloques:** el split del modelo v0 divide por bloques dentro de cada sesión (70/15/15), no por sesión completa. Las métricas pueden ser algo optimistas.
+- **Faltan fotos de fondo y botella:** la captura de fotos de fondo (objetos ajenos y mesa vacía), botellas propias y destornilladores sobre la mesa está en curso.
+- **Riesgo con objetos ajenos:** un modelo de 5 clases puede asignar la clase más parecida a objetos ajenos (por ejemplo, una pluma como destornillador). La mitigación está en los filtros (persistencia, umbral por clase) y en las fotos de fondo del modelo v1.
 - La primera inferencia con OpenVINO tarda unos 10 s (compilación). Se hace al iniciar, antes de abrir la ventana.
 - Los FPS dependen de la CPU y de la resolución de la cámara.
 
 ## Mejoras propuestas
 
-- Entrenar `best.pt` con un dataset propio que incluya fondos negativos (clase vacía).
+- **Modelo v1** con fotos de fondo (negativos), botellas propias y destornilladores sobre la mesa.
+- **Revisión manual de etiquetas** en Roboflow, especialmente las marcadas como "REVISAR".
+- **División por sesión completa** (en vez de por bloques) para métricas más realistas.
+- **Calibración de umbrales** por clase con la curva precision-recall del conjunto de validación.
+- **Cuantización INT8** con OpenVINO (NNCF) para ganar FPS.
 - Activar el verificador CNN (bonus) para las clases con más confusión.
-- Cuantización INT8 con OpenVINO (NNCF) para ganar FPS.
-- Calibrar los umbrales por clase con la curva PR del split val.

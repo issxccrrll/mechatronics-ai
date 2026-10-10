@@ -224,7 +224,74 @@ Un modelo entrenado solo con 5 clases tiende a asignar la clase más parecida a 
 
 ## 6. Resultados
 
-PENDIENTE: se completa con scripts/eval.py tras entrenar el modelo v0 (ver metricas.md).
+Modelo: `models/best.pt` (YOLO11n, transfer learning desde COCO, 80 épocas en Tesla T4).
+Evaluado sobre el split de **test** (287 imágenes separadas de train/val).
+
+Reproducir: `python scripts/eval.py --model models/best.pt`
+
+### Resultados por clase (protocolo estándar, conf 0.001)
+
+| clase          | precision | recall | mAP50  | mAP50-95 |
+|----------------|----------:|-------:|-------:|---------:|
+| todas          |    0.8562 | 0.8064 | 0.8417 |   0.6619 |
+| taza           |    0.6489 | 0.8306 | 0.7588 |   0.6505 |
+| botella        |    0.9655 | 0.9286 | 0.9907 |   0.6628 |
+| tijeras        |    0.8392 | 0.5402 | 0.6608 |   0.5261 |
+| destornillador |    0.8908 | 0.7692 | 0.8487 |   0.5966 |
+| celular        |    0.9365 | 0.9634 | 0.9493 |   0.8735 |
+
+### Precision y recall al umbral de operación (conf 0.40)
+
+| clase          | precision | recall |
+|----------------|----------:|-------:|
+| todas          |    0.8743 | 0.7807 |
+| taza           |    0.6422 | 0.7865 |
+| botella        |    1.0000 | 0.8929 |
+| tijeras        |    0.8824 | 0.5172 |
+| destornillador |    0.9062 | 0.7436 |
+| celular        |    0.9405 | 0.9634 |
+
+### Matriz de confusión (conf 0.40)
+
+Filas = predicción, columnas = clase real; "fondo" = sin objeto.
+
+| pred \ real    | taza | botella | tijeras | destornillador | celular | fondo |
+|----------------|-----:|--------:|--------:|---------------:|--------:|------:|
+| taza           |   70 |       1 |       0 |              0 |       0 |    38 |
+| botella        |    0 |      24 |       0 |              0 |       0 |     1 |
+| tijeras        |    0 |       0 |      15 |              0 |       0 |     2 |
+| destornillador |    0 |       0 |       0 |             59 |       0 |     5 |
+| celular        |    0 |       0 |       1 |              0 |      79 |     4 |
+| fondo          |   19 |       3 |      13 |             19 |       3 |     0 |
+
+### Lectura de resultados
+
+**Clases fuertes:** botella (mAP50 0.99, precision 1.0 a conf 0.40) y celular (mAP50 0.95,
+recall 0.96) son las más confiables. Destornillador (mAP50 0.85) también tiene buen rendimiento.
+
+**Clases a mejorar:** tijeras tiene el recall más bajo (0.54 estándar, 0.52 a conf 0.40) y
+mAP50 de 0.66; se necesitan más fotos con variedad de tijeras. Taza tiene precision baja
+(0.64): las 38 predicciones de "taza sobre fondo" probablemente corresponden en buena parte a
+tazas reales que el pre-etiquetado automático no marcó en escenas con varias tazas; esto se
+corregirá con la revisión manual de etiquetas.
+
+Casi no hay confusiones **entre clases oficiales** (solo 1 botella predicha como taza y 1
+tijeras predicha como celular). Los errores principales son predicciones sobre fondo y objetos
+no detectados.
+
+**Nota:** el test del modelo v0 se dividió por bloques dentro de cada sesión (70/15/15). Las
+métricas pueden ser algo optimistas respecto a un escenario real. El modelo final se evaluará
+con división por sesión completa.
+
+### Rendimiento en CPU (Intel Core i7-13620H)
+
+| Medición                              | FPS           |
+|---------------------------------------|---------------|
+| Inferencia OpenVINO (modelo propio)   | ~32–35        |
+| Pipeline completo en vivo             | 17.8–29.8     |
+| Requisito mínimo del reto             | 15            |
+
+Comando: `python scripts/benchmark_fps.py --model models/best_openvino_model`
 
 ---
 
