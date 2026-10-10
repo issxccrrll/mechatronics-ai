@@ -50,6 +50,7 @@ def main():
                     msg = MENSAJES[camara.estado].format(intentos=camara.intentos)
                     if not ui.mostrar(ui.pantalla_estado(msg, cam_cfg["ancho"], cam_cfg["alto"])):
                         break
+                    time.sleep(0.03)
                 elif not ui.procesar_eventos():
                     break
                 continue

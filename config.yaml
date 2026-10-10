@@ -64,6 +64,8 @@ ui:
   ventana: Mechatronics AI
   trackbars: true
   mostrar_rechazadas: true
+  mostrar_contador_clases: true
+  mostrar_id: true
 
 logger:
   activo: true
