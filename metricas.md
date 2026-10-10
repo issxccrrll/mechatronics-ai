@@ -15,17 +15,6 @@ Reproducir: `python scripts/eval.py --model models/best.pt`
 | destornillador | 0.8815 | 0.676 | 0.7839 | 0.5454 |
 | celular | 0.9109 | 0.8966 | 0.9267 | 0.8526 |
 
-## Precision y recall al umbral de operación (conf 0.3)
-
-| clase | precision | recall |
-|---|---|---|
-| todas | 0.7799 | 0.6951 |
-| taza | 0.6485 | 0.7566 |
-| botella | 0.7543 | 0.438 |
-| tijeras | 0.7041 | 0.7083 |
-| destornillador | 0.8815 | 0.676 |
-| celular | 0.9109 | 0.8966 |
-
 ## Matriz de confusión (conf 0.3)
 
 Filas = predicción, columnas = clase real; "fondo" = sin objeto.

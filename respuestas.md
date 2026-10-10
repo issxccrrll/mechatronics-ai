@@ -27,7 +27,7 @@ inferencia en CPU. Comparación medida en la laptop del equipo:
 | Motor      | FPS de inferencia (imgsz 640) | FPS en pipeline completo (en vivo) |
 |------------|------------------------------:|-----------------------------------:|
 | PyTorch    |                         ~22.5 |                                 — |
-| OpenVINO   |                          ~62  |                        17.8–29.8 |
+| OpenVINO   |                         ~47.6 | 16–30 (25.9 con la laptop libre) |
 
 El pipeline completo incluye captura de cámara, detección, verificación, filtros y dibujo en
 pantalla, por lo que el FPS real es menor que el de inferencia pura. Aun así supera los 15 FPS
@@ -48,33 +48,37 @@ posición de cada objeto. Los archivos se nombran con la fecha y hora de la sesi
 
 | Carpeta        | Fotos (jpg) | Etiquetadas (txt) |
 |----------------|------------:|------------------:|
-| taza           |         505 |               475 |
-| tijeras        |         200 |               195 |
-| destornillador |         834 |               618 |
-| celular        |         549 |               548 |
-| mixto          |         200 |               200 |
-| **Total**      |   **2 288** |         **2 036** |
+| botella        |         276 |               276 |
+| celular        |         623 |               579 |
+| destornillador |       1 013 |               940 |
+| fondo          |         313 |      313 (vacías) |
+| mixto          |         299 |               203 |
+| taza           |         584 |               581 |
+| tijeras        |         328 |               325 |
+| **Total**      |   **3 436** |         **3 217** |
 
-Las imágenes sin archivo `.txt` se excluyen del entrenamiento: un `.txt` vacío le enseñaría al
+Son 25 sesiones de captura. Las fotos de **fondo** (objetos ajenos y mesa vacía) llevan una etiqueta
+vacía a propósito: le enseñan al modelo qué no es un objeto. Las imágenes sin archivo `.txt` se excluyen del entrenamiento: un `.txt` vacío le enseñaría al
 modelo que no hay ningún objeto en la imagen.
 
-### División del dataset (modelo v0)
+### División del dataset (modelo final v2)
 
-El split se realiza con `scripts/split_dataset.py --bloques`: cada sesión de captura se divide en
-bloques consecutivos 70/15/15 (train/val/test). Las fotos seguidas de una misma sesión quedan en el
-mismo bloque, para reducir la fuga de información entre train y test. Total: **1 432** imágenes de
-train, **317** de val y **287** de test.
+`scripts/split_dataset.py --bloques --ejemplares-test botella-test`:
+- Cada sesión se divide en bloques consecutivos 70/15/15 (train/val/test); las fotos seguidas
+  de una sesión quedan en el mismo bloque, para reducir la fuga entre train y test.
+- **Excepción, para medir generalización:** una botella física (`botella-test`) se fotografió
+  aparte y va **solo a test**; el modelo nunca la vio al entrenar.
+- Total: **2 229** imágenes de train, **517** de val y **471** de test (incluido en el repo, en `dataset/test/`).
 
 | clase          | train | val | test |
 |----------------|------:|----:|-----:|
-| celular        |   385 |  83 |   80 |
-| destornillador |   442 |  98 |   78 |
-| mixto          |   140 |  30 |   30 |
-| taza           |   327 |  76 |   72 |
-| tijeras        |   138 |  30 |   27 |
-
-Para el modelo final se planea dividir por sesión completa (más estricto, sin compartir fotos de
-una misma sesión entre splits).
+| botella        |   150 |  73 |   53 |
+| celular        |   410 |  86 |   83 |
+| destornillador |   669 | 144 |  127 |
+| fondo          |   221 |  47 |   45 |
+| mixto          |   141 |  30 |   32 |
+| taza           |   407 |  88 |   86 |
+| tijeras        |   231 |  49 |   45 |
 
 ### Etiquetado semiautomático (formato YOLO)
 
@@ -94,15 +98,10 @@ El etiquetado combina detección automática con revisión humana en tres etapas
    - Se evaluaron previamente **YOLOE** (0 de 40 aciertos) y **YOLO-World** (7 de 40). Ninguno
      sirvió para destornilladores; OWLv2 fue el único que dio resultados aceptables.
 
-3. **Revisión humana** — Las cajas marcadas como "REVISAR" se verifican manualmente en Roboflow.
-   Esta etapa está en curso para el modelo final.
-
-### Trabajo pendiente de captura
-
-- Fotos propias de botella de plástico (actualmente solo aparece en las fotos de mixto).
-- Fotos de fondo: objetos ajenos y mesa vacía, sin etiquetas, para enseñar al modelo a no
-  detectar clases oficiales donde no las hay.
-- Destornilladores apoyados sobre la mesa en posición horizontal.
+3. **Revisión humana** — Las propuestas automáticas se revisaron foto por foto: de 474 cajas
+   propuestas por el modelo v0 en las fotos nuevas, se aprobaron 141 y se descartaron 333 (cajas
+   sobre objetos equivocados). Las 694 fotos restantes se etiquetaron a mano en Roboflow
+   (`scripts/integrar_roboflow.py` las trae al dataset traduciendo clases y nombres).
 
 ---
 
@@ -142,7 +141,7 @@ otro color) y aprenda la **forma** del objeto en vez de atajos como el color o e
 
 ## 4. Hiperparámetros y entrenamiento
 
-### Hiperparámetros principales (modelo v0)
+### Hiperparámetros principales (modelo final v2)
 
 | Parámetro   | Valor          | Notas                                    |
 |-------------|----------------|------------------------------------------|
@@ -158,8 +157,8 @@ otro color) y aprenda la **forma** del objeto en vez de atajos como el color o e
 El entrenamiento se realiza en **GPU Tesla T4 en Google Colab** usando el notebook
 `notebooks/train_colab.ipynb`, que ejecuta `scripts/train.py`.
 
-En la laptop del equipo, una época con 427 imágenes tarda 112 segundos en CPU (unas 11–12 horas
-para el entrenamiento completo). Por eso se entrena en la nube. La **inferencia** sí corre en
+En una prueba en la laptop del equipo, una época con 427 imágenes tardó 112 segundos en CPU; con
+las 2 229 imágenes del v2 serían horas. En la T4, las 80 épocas tardaron alrededor de 1 hora. Por eso se entrena en la nube. La **inferencia** sí corre en
 CPU, como exige el reto, gracias a la exportación a OpenVINO.
 
 ---
@@ -176,18 +175,22 @@ clase oficial. Esto garantiza la regla del reto de no asignar clases oficiales a
 
 ### 2. ClassThresholdFilter
 
-Umbral de confianza individual por clase, nunca inferior al umbral global (0.40, ajustable en
+Umbral de confianza individual por clase, nunca inferior al umbral global (0.30, ajustable en
 vivo con un trackbar):
 
 | Clase          | Umbral |
 |----------------|-------:|
-| taza           |   0.45 |
-| botella        |   0.45 |
+| taza           |   0.30 |
+| botella        |   0.33 |
 | tijeras        |   0.50 |
-| destornillador |   0.55 |
-| celular        |   0.50 |
+| destornillador |   0.30 |
+| celular        |   0.30 |
 
-Las clases que más se confunden (destornillador) llevan un umbral más estricto.
+Los umbrales se **calibraron con datos** (`scripts/calibrar_umbrales.py`): para cada clase, el
+umbral más bajo cuyo F1 en validación queda a menos de 0.02 del máximo. El de tijeras salió 0.65 y
+se limitó a 0.50, porque validación casi no tiene tijeras en la mano. El motivo de calibrar fue una
+prueba en vivo: el registro CSV mostró que los objetos en la mano se detectaban con confianza
+0.34–0.40 y los umbrales anteriores (0.45–0.55, puestos a mano) los descartaban.
 
 ### 3. AreaAspectFilter
 
@@ -218,78 +221,64 @@ Un modelo entrenado solo con 5 clases tiende a asignar la clase más parecida a 
 - Fotos de fondo (negativos) en el dataset.
 - Umbrales por clase estrictos.
 - Filtro de persistencia temporal.
-- Los umbrales se calibrarán con la curva precision-recall del conjunto de validación.
+- Umbrales calibrados con el F1 del conjunto de validación.
 
 ---
 
 ## 6. Resultados
 
-Modelo: `models/best.pt` (YOLO11n, transfer learning desde COCO, 80 épocas en Tesla T4).
-Evaluado sobre el split de **test** (287 imágenes separadas de train/val).
+Modelo final: `models/best.pt` (v2; YOLO11n, transfer learning desde COCO, 80 épocas en Tesla T4).
+Evaluado sobre el split de **test** (471 imágenes separadas de train/val, con una botella que el
+modelo nunca vio). La última columna es el modelo anterior (v0) en **el mismo test**.
 
 Reproducir: `python scripts/eval.py --model models/best.pt`
 
-### Resultados por clase (protocolo estándar, conf 0.001)
+| clase          | precision | recall | mAP50  | mAP50-95 | mAP50 del v0 |
+|----------------|----------:|-------:|-------:|---------:|-------------:|
+| **todas**      |    0.7799 | 0.6951 | **0.7404** | 0.5362 | 0.626 |
+| taza           |    0.6485 | 0.7566 | 0.7467 |   0.6113 | 0.676 |
+| botella        |    0.7543 | 0.4380 | 0.5032 |   0.2051 | 0.325 |
+| tijeras        |    0.7041 | 0.7083 | 0.7415 |   0.4667 | 0.588 |
+| destornillador |    0.8815 | 0.6760 | 0.7839 |   0.5454 | 0.614 |
+| celular        |    0.9109 | 0.8966 | 0.9267 |   0.8526 | 0.926 |
 
-| clase          | precision | recall | mAP50  | mAP50-95 |
-|----------------|----------:|-------:|-------:|---------:|
-| todas          |    0.8562 | 0.8064 | 0.8417 |   0.6619 |
-| taza           |    0.6489 | 0.8306 | 0.7588 |   0.6505 |
-| botella        |    0.9655 | 0.9286 | 0.9907 |   0.6628 |
-| tijeras        |    0.8392 | 0.5402 | 0.6608 |   0.5261 |
-| destornillador |    0.8908 | 0.7692 | 0.8487 |   0.5966 |
-| celular        |    0.9365 | 0.9634 | 0.9493 |   0.8735 |
+**El v2 mejora en todas las clases: mAP50 de 0.626 a 0.740 (+11.4 puntos, +18%).** Las mayores
+subidas son botella (+17.8), destornillador (+17.0) y tijeras (+15.3), justo donde se agregaron
+fotos en la mano, sobre la mesa y de fondo.
 
-### Precision y recall al umbral de operación (conf 0.40)
-
-| clase          | precision | recall |
-|----------------|----------:|-------:|
-| todas          |    0.8743 | 0.7807 |
-| taza           |    0.6422 | 0.7865 |
-| botella        |    1.0000 | 0.8929 |
-| tijeras        |    0.8824 | 0.5172 |
-| destornillador |    0.9062 | 0.7436 |
-| celular        |    0.9405 | 0.9634 |
-
-### Matriz de confusión (conf 0.40)
+### Matriz de confusión (conf 0.30, el umbral de operación)
 
 Filas = predicción, columnas = clase real; "fondo" = sin objeto.
 
 | pred \ real    | taza | botella | tijeras | destornillador | celular | fondo |
 |----------------|-----:|--------:|--------:|---------------:|--------:|------:|
-| taza           |   70 |       1 |       0 |              0 |       0 |    38 |
-| botella        |    0 |      24 |       0 |              0 |       0 |     1 |
-| tijeras        |    0 |       0 |      15 |              0 |       0 |     2 |
-| destornillador |    0 |       0 |       0 |             59 |       0 |     5 |
-| celular        |    0 |       0 |       1 |              0 |      79 |     4 |
-| fondo          |   19 |       3 |      13 |             19 |       3 |     0 |
+| taza           |   79 |      16 |       0 |              0 |       1 |    28 |
+| botella        |    0 |      61 |       0 |              0 |       1 |    26 |
+| tijeras        |    0 |       0 |      35 |              0 |       0 |    16 |
+| destornillador |    0 |       0 |       3 |            108 |       0 |    12 |
+| celular        |    0 |       0 |       0 |              0 |      78 |    13 |
+| fondo          |   21 |      44 |      10 |             35 |       7 |     0 |
 
 ### Lectura de resultados
 
-**Clases fuertes:** botella (mAP50 0.99, precision 1.0 a conf 0.40) y celular (mAP50 0.95,
-recall 0.96) son las más confiables. Destornillador (mAP50 0.85) también tiene buen rendimiento.
-
-**Clases a mejorar:** tijeras tiene el recall más bajo (0.54 estándar, 0.52 a conf 0.40) y
-mAP50 de 0.66; se necesitan más fotos con variedad de tijeras. Taza tiene precision baja
-(0.64): las 38 predicciones de "taza sobre fondo" probablemente corresponden en buena parte a
-tazas reales que el pre-etiquetado automático no marcó en escenas con varias tazas; esto se
-corregirá con la revisión manual de etiquetas.
-
-Casi no hay confusiones **entre clases oficiales** (solo 1 botella predicha como taza y 1
-tijeras predicha como celular). Los errores principales son predicciones sobre fondo y objetos
-no detectados.
-
-**Nota:** el test del modelo v0 se dividió por bloques dentro de cada sesión (70/15/15). Las
-métricas pueden ser algo optimistas respecto a un escenario real. El modelo final se evaluará
-con división por sesión completa.
+- **Clases fuertes:** celular (mAP50 0.93), destornillador (0.78), taza (0.75) y tijeras (0.74).
+- **Clase más difícil: botella (0.50).** Su test es la botella que el modelo **nunca vio**; 44 no
+  se detectan y 16 se confunden con taza. Muestra el límite de generalizar a un ejemplar nuevo
+  con pocas botellas distintas en entrenamiento; la mejora es fotografiar más tipos de botella.
+- **Pocas confusiones entre clases** salvo botella→taza (16) y tijeras→destornillador (3).
+- **Detecciones sobre fondo:** 28 de taza y 26 de botella son las más altas; parte corresponde a
+  objetos reales sin etiquetar en escenas con varios objetos.
+- **Límite del test:** salvo la botella, el test comparte sesiones con train (bloques), así que
+  puede ser algo optimista para lugares totalmente nuevos.
 
 ### Rendimiento en CPU (Intel Core i7-13620H)
 
-| Medición                              | FPS           |
-|---------------------------------------|---------------|
-| Inferencia OpenVINO (modelo propio)   | ~32–35        |
-| Pipeline completo en vivo             | 17.8–29.8     |
-| Requisito mínimo del reto             | 15            |
+| Medición                                   | FPS |
+|--------------------------------------------|-----|
+| Inferencia OpenVINO del modelo final       | ~47.6 (benchmark) |
+| Inferencia PyTorch (`.pt`)                 | ~22.5 |
+| Pipeline completo en vivo (cámara + todo)  | 16–30 según la carga de la laptop; 25.9 con la interfaz final y la laptop libre |
+| Requisito mínimo del reto                  | 15 |
 
 Comando: `python scripts/benchmark_fps.py --model models/best_openvino_model`
 
@@ -299,8 +288,8 @@ Comando: `python scripts/benchmark_fps.py --model models/best_openvino_model`
 
 - **YOLO11n con transfer learning** en lugar de entrenar desde cero: 4 de 5 clases ya están en
   COCO, y el modelo converge rápido con pocas imágenes propias.
-- **OpenVINO para la inferencia en CPU:** triplica los FPS respecto a PyTorch (~62 vs ~22.5),
-  permitiendo superar los 15 FPS requeridos con holgura.
+- **OpenVINO para la inferencia en CPU:** duplica los FPS de inferencia respecto a PyTorch
+  (~47.6 frente a ~22.5 con el modelo final), con margen sobre los 15 FPS requeridos.
 - **Cámara en un hilo separado** que siempre entrega el frame más reciente, con reconexión
   automática y mensaje en pantalla cuando se pierde la señal.
 - **División por sesión o bloques consecutivos** en vez de al azar, para evitar que fotos casi

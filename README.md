@@ -107,29 +107,28 @@ python scripts/eval.py --model models/best.pt           # usa dataset/test (incl
 python scripts/benchmark_fps.py --model models/best_openvino_model
 ```
 
-### Resultados del modelo v0 en test (287 imágenes)
+### Resultados del modelo final (v2) en test (471 imágenes, incluido en `dataset/test/`)
 
-| clase          | precision | recall | mAP50  | mAP50-95 |
-|----------------|----------:|-------:|-------:|---------:|
-| todas          |    0.8562 | 0.8064 | 0.8417 |   0.6619 |
-| taza           |    0.6489 | 0.8306 | 0.7588 |   0.6505 |
-| botella        |    0.9655 | 0.9286 | 0.9907 |   0.6628 |
-| tijeras        |    0.8392 | 0.5402 | 0.6608 |   0.5261 |
-| destornillador |    0.8908 | 0.7692 | 0.8487 |   0.5966 |
-| celular        |    0.9365 | 0.9634 | 0.9493 |   0.8735 |
+| clase          | precision | recall | mAP50  | mAP50-95 | mAP50 del v0 |
+|----------------|----------:|-------:|-------:|---------:|-------------:|
+| **todas**      |    0.7799 | 0.6951 | **0.7404** | 0.5362 | 0.626 |
+| taza           |    0.6485 | 0.7566 | 0.7467 |   0.6113 | 0.676 |
+| botella        |    0.7543 | 0.4380 | 0.5032 |   0.2051 | 0.325 |
+| tijeras        |    0.7041 | 0.7083 | 0.7415 |   0.4667 | 0.588 |
+| destornillador |    0.8815 | 0.6760 | 0.7839 |   0.5454 | 0.614 |
+| celular        |    0.9109 | 0.8966 | 0.9267 |   0.8526 | 0.926 |
 
-Al umbral de operación (conf 0.40): precision **0.8743**, recall **0.7807**.
-
-Reproducir: `python scripts/eval.py --model models/best.pt`. Detalles completos en [`metricas.md`](metricas.md).
+El test incluye una **botella que el modelo nunca vio** al entrenar. Matriz de confusión y detalle en
+[`metricas.md`](metricas.md).
 
 ### Rendimiento en CPU (Intel Core i7-13620H)
 
-| Motor    | FPS de inferencia | FPS en pipeline completo (en vivo) |
-|----------|------------------:|-----------------------------------:|
-| OpenVINO |           ~32–35  |                        17.8–29.8   |
-| PyTorch  |           ~22.5   |                                 —  |
-
-Supera el mínimo de 15 FPS requerido por el reto.
+| Medición                                   | FPS |
+|--------------------------------------------|-----|
+| Inferencia OpenVINO del modelo final       | ~47.6 (benchmark) |
+| Inferencia PyTorch (`.pt`)                 | ~22.5 |
+| Pipeline completo en vivo (cámara + todo)  | 16–30 según la carga de la laptop; 25.9 con la interfaz final y la laptop libre |
+| Requisito mínimo del reto                  | 15 |
 
 ## Justificación de la técnica contra falsos positivos
 
@@ -139,7 +138,7 @@ El pipeline aplica 4 filtros en cascada (patrón Strategy, cada uno activable en
 Cualquier clase que no sea una de las 5 oficiales pasa a estado `desconocido`. Garantiza la regla del reto: nunca se asigna una clase oficial a un objeto ajeno.
 
 ### 2. ClassThresholdFilter
-Umbral de confianza individual por clase (taza 0.45, botella 0.45, tijeras 0.50, destornillador 0.55, celular 0.50), nunca inferior al umbral global (0.40, ajustable en vivo con trackbar). Las clases que más se confunden llevan umbral más estricto.
+Umbral de confianza individual por clase (taza 0.30, botella 0.33, tijeras 0.50, destornillador 0.30, celular 0.30), nunca inferior al umbral global (0.30, ajustable en vivo con el trackbar). **Calibrados con datos** con `scripts/calibrar_umbrales.py`: el umbral más bajo cuyo F1 en validación queda a menos de 0.02 del máximo (tijeras limitado a 0.50 para no perder tijeras en la mano).
 
 ### 3. AreaAspectFilter
 Rechaza cajas con área menor al 0.2% o mayor al 90% del frame, o con relación de aspecto fuera de 0.15–6.0. Elimina cajas físicamente imposibles.
@@ -149,11 +148,10 @@ Un objeto solo se acepta si aparece en al menos **3 de los últimos 5 frames**, 
 
 ### Evidencia con datos
 
-La **matriz de confusión a conf 0.40** muestra que casi no hay confusiones entre clases oficiales: solo 1 botella predicha como taza y 1 tijeras predicha como celular. Los errores principales son predicciones sobre fondo (objetos no etiquetados o falsos positivos aislados) y objetos no detectados.
-
-La precision sube de **0.856** (conf 0.001, sin filtro de umbral) a **0.874** (conf 0.40, con el ClassThresholdFilter activo), confirmando que el umbral por clase reduce falsos positivos sin perder demasiado recall.
-
-El efecto individual de cada filtro se medirá con el ensayo de las 20 escenas del jurado. Todavía no se ha ejecutado un ensayo completo con el modelo v0.
+- **Calibración:** en una prueba en vivo, el registro CSV (`logs/`) mostró que los objetos en la mano se detectaban con confianza 0.34–0.40 y los umbrales puestos a mano (0.45–0.55) los rechazaban (más de 2 000 rechazos de destornillador en una sesión). Se recalibraron con el F1 de validación.
+- **Matriz de confusión a conf 0.30** (`metricas.md`): pocas confusiones entre clases oficiales; la principal es botella→taza (16), por la botella nunca vista del test.
+- **Fotos de fondo:** 313 fotos de objetos ajenos y mesa vacía en el entrenamiento, para que el modelo no asigne clases oficiales a lo que no lo es.
+- **Persistencia:** elimina destellos de 1–2 cuadros; el efecto individual de cada filtro se mide con el ensayo de escenas (`scripts/ensayo_escenas.py`).
 
 ### Riesgo y mitigación
 
@@ -232,7 +230,7 @@ propio devuelve los nombres oficiales y se usa tal cual; `mapeo_clases` solo tra
 
 - **YOLO11n con transfer learning:** 4 de 5 clases ya están en COCO; partir de pesos preentrenados reduce el tiempo de entrenamiento y permite converger con un dataset pequeño (~2 000 imágenes).
 - **Modelo propio (`best.pt`):** resuelve la falta de destornillador en COCO y devuelve directamente los nombres oficiales sin mapeo.
-- **OpenVINO por defecto:** ~32–35 FPS de inferencia del modelo propio frente a ~22.5 FPS con PyTorch. Pipeline completo en vivo: 17.8–29.8 FPS.
+- **OpenVINO por defecto:** ~47.6 FPS de inferencia del modelo final frente a ~22.5 FPS con PyTorch. Pipeline completo en vivo: 16–30 FPS.
 - **Entrenamiento en la nube, inferencia en CPU:** entrenar en GPU Tesla T4 (Colab) tarda minutos; en CPU tardaría 11–12 horas. La inferencia sí corre en CPU, como exige el reto.
 - **Cámara en un hilo:** siempre se procesa el frame más reciente, sin acumular retraso. Reconexión automática con mensaje en pantalla.
 - **Umbral bajo en el modelo (0.25) y umbral real en los filtros:** así el trackbar puede bajar o subir el umbral en vivo.
@@ -258,7 +256,7 @@ Se usaron asistentes de IA (Claude y Gemini) como apoyo en el desarrollo y la do
 
 - **Tijeras con recall bajo:** mAP50 de 0.66 y recall de 0.54. Se necesitan más fotos con variedad de tijeras (distintos colores, tamaños y posiciones).
 - **Tazas sobre fondo:** 38 predicciones de "taza" sobre fondo en la matriz de confusión. Probablemente corresponden en buena parte a tazas reales no etiquetadas por el pre-etiquetado automático. Se corregirá con revisión manual.
-- **Test por bloques:** el split del modelo v0 divide por bloques dentro de cada sesión (70/15/15), no por sesión completa. Las métricas pueden ser algo optimistas.
+- **Test por bloques:** salvo la botella (ejemplar nunca visto), el test se divide por bloques dentro de cada sesión (70/15/15), no por sesión completa; las métricas pueden ser algo optimistas para lugares totalmente nuevos.
 - **Faltan fotos de fondo y botella:** la captura de fotos de fondo (objetos ajenos y mesa vacía), botellas propias y destornilladores sobre la mesa está en curso.
 - **Riesgo con objetos ajenos:** un modelo de 5 clases puede asignar la clase más parecida a objetos ajenos (por ejemplo, una pluma como destornillador). La mitigación está en los filtros (persistencia, umbral por clase) y en las fotos de fondo del modelo v1.
 - La primera inferencia con OpenVINO tarda unos 10 s (compilación). Se hace al iniciar, antes de abrir la ventana.

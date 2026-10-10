@@ -80,7 +80,6 @@ def main():
 
     df = por_clase(res)
     df.to_csv(RAIZ / "metricas.csv", index=False)
-    df_op = por_clase(res_op)[["clase", "precision", "recall"]]
 
     for origen, destino in (("confusion_matrix.png", "confusion_matrix.png"),
                             ("confusion_matrix_normalized.png", "confusion_matrix_normalized.png")):
@@ -93,13 +92,11 @@ def main():
         f"# Métricas\n\nModelo: `{args.model}` · split: **test** (separado de train/val) · fecha: {date.today()}\n\n"
         f"Reproducir: `python scripts/eval.py --model {args.model}`\n\n"
         f"## Resultados por clase (protocolo estándar, conf 0.001)\n\n{tabla_md(df)}\n\n"
-        f"## Precision y recall al umbral de operación (conf {args.conf_operacion})\n\n{tabla_md(df_op)}\n\n"
         f"## Matriz de confusión (conf {args.conf_operacion})\n\n"
         f"Filas = predicción, columnas = clase real; \"fondo\" = sin objeto.\n\n{matriz_md(res_op)}\n\n"
         f"![Matriz de confusión](docs/confusion_matrix.png)\n",
         encoding="utf-8")
     print(df.to_string(index=False))
-    print(f"\nAl umbral de operación {args.conf_operacion}:\n{df_op.to_string(index=False)}")
 
 
 if __name__ == "__main__":
