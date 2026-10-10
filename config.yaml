@@ -13,7 +13,7 @@ modelo:
   # Generar con: python scripts/export.py --model models/yolo11n.pt --formatos openvino
   ruta: models/best_openvino_model   # modelo propio v0 (5 clases); COCO: models/yolo11n_openvino_model
   imgsz: 640
-  conf: 0.40                # umbral global de confianza (ajustable con trackbar)
+  conf: 0.30                # umbral global de confianza (ajustable con trackbar)
   iou: 0.5
   device: cpu
   tracking: true            # usa ByteTrack de ultralytics para obtener track_id
@@ -42,11 +42,11 @@ filtros:
   class_threshold:
     activo: true
     umbrales:                    # umbral por clase (sobre el global)
-      taza: 0.45
-      botella: 0.45
-      tijeras: 0.50
-      destornillador: 0.55
-      celular: 0.50
+      taza: 0.30
+      botella: 0.30
+      tijeras: 0.40
+      destornillador: 0.32
+      celular: 0.30
   area_aspect:
     activo: true
     area_min: 0.002              # fracción del área del frame

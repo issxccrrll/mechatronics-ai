@@ -56,6 +56,8 @@ def main():
     p.add_argument("--carpetas", nargs="*", help="por defecto todas las de dataset/raw")
     p.add_argument("--conf", type=float, default=0.30)
     p.add_argument("--conf-bajo", type=float, default=0.10, help="segunda pasada si no hubo cajas")
+    p.add_argument("--solo-normal", action="store_true",
+                   help="solo la pasada normal (sin umbral bajo/TTA/rotación); útil en fondos nuevos")
     p.add_argument("--area-min", type=float, default=0.008,
                    help="área mínima (fracción de la imagen) de cajas en las pasadas extra")
     p.add_argument("--no-forzar", action="store_true",
@@ -141,6 +143,8 @@ def detectar_con_pasadas(modelo, img: Path, args, mapeo: dict) -> tuple[list, st
     cajas = detectar(modelo, imagen, args.conf, args.imgsz, mapeo)
     if cajas:
         return cajas, "normal"
+    if args.solo_normal:  # sin pasadas de baja confianza: mejor sin etiqueta que con una caja mala
+        return [], "ninguna"
     cajas = grandes(detectar(modelo, imagen, args.conf_bajo, args.imgsz, mapeo), args.area_min)[:1]
     if cajas:
         return cajas, "umbral_bajo"
