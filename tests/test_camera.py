@@ -74,3 +74,19 @@ def test_camara_cerrar_despierta_hilos_en_espera():
 
     assert frame is None
     assert duracion < 0.2
+
+
+def test_candidatos_webcam_prueba_otros_indices():
+    cam = Camara.__new__(Camara)  # sin iniciar el hilo ni abrir hardware
+    cam.source = 0
+    assert cam.candidatos() == [0, 1, 2, 3]
+    cam.source = 2
+    assert cam.candidatos() == [2, 0, 1, 3]
+
+
+def test_candidatos_url_o_fuera_de_rango_no_cambia():
+    cam = Camara.__new__(Camara)
+    cam.source = "http://192.168.1.50:8080/video"
+    assert cam.candidatos() == ["http://192.168.1.50:8080/video"]
+    cam.source = -999
+    assert cam.candidatos() == [-999]
