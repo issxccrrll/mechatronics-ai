@@ -40,7 +40,8 @@ class YoloDetector(Detector):
         self.detectar(np.zeros((480, 640, 3), dtype=np.uint8))
 
     def _mapear(self, nombre: str) -> str:
-        clase = self.mapeo.get(nombre, DESCONOCIDO)
+        # Modelo propio: ya devuelve nombres oficiales. COCO: se traduce con mapeo_clases.
+        clase = nombre if nombre in self.oficiales else self.mapeo.get(nombre, DESCONOCIDO)
         return clase if clase in self.oficiales else DESCONOCIDO
 
     def detectar(self, frame) -> list[Detection]:
