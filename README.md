@@ -21,7 +21,12 @@ Cámara (hilo) → Detector (YOLO11n) → Verificador (opcional) → Filtros →
 
 ## Instalación (Windows, Python 3.11)
 
+**Todos los comandos de este README se ejecutan desde la raíz del repositorio** (`mechatronics-ai`),
+con el entorno virtual activado.
+
 ```powershell
+git clone https://github.com/issxccrrll/mechatronics-ai.git
+cd mechatronics-ai
 # Si no tienes Python 3.11: uv python install 3.11  (convive con otras versiones)
 py -3.11 -m venv venv            # o: & (uv python find 3.11) -m venv venv
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass   # permite activar el venv en esta terminal
@@ -61,7 +66,7 @@ Si la carpeta OpenVINO no existe, el detector usa automáticamente `best.pt` (m�
   - Por URL: `--source http://IP:4747/video`.
   - O instala el cliente de Windows, que crea una webcam virtual, y usa `--source 1`.
 
-Si la cámara no está disponible o se pierde la conexión, la ventana muestra *"Reintentando conexión…"* y reintenta sin cerrarse.
+Si la cámara no está disponible o se pierde la conexión, la ventana muestra *"Sin senal. Reintentando conexion (N)..."* (sin acentos: la fuente de OpenCV no los dibuja) y reintenta sin cerrarse.
 
 ## Ejecución
 
@@ -72,7 +77,7 @@ python main.py --model models/best_openvino_model --imgsz 480
 ```
 
 - Tecla **q**: salir.
-- **Trackbars**: umbral global (%) y persistencia N, ajustables en vivo.
+- **Trackbars** `Umbral %` y `Persistencia N`: umbral global de confianza y persistencia, ajustables en vivo.
 - **Colores**: verde = aceptada, rojo = rechazada (con el filtro que la rechazó), gris = desconocido.
 - **Contador por clase**: panel en la esquina inferior izquierda con el conteo de objetos aceptados por clase. Configurable en `config.yaml > ui > mostrar_contador_clases`.
 - **ID de seguimiento**: cada detección muestra su ID de ByteTrack (`taza #3 0.87`). Configurable en `config.yaml > ui > mostrar_id`.
@@ -97,8 +102,8 @@ Al finalizar imprime el resumen en consola y guarda un CSV en `logs/ensayo_AAAAM
 ## Evaluación
 
 ```powershell
-pytest                                                  # pruebas unitarias
-python scripts/eval.py --model models/best.pt           # escribe metricas.md y metricas.csv
+python -m pytest                                        # pruebas unitarias
+python scripts/eval.py --model models/best.pt           # usa dataset/test (incluido); escribe metricas.md y metricas.csv
 python scripts/benchmark_fps.py --model models/best_openvino_model
 ```
 
@@ -174,7 +179,7 @@ Usa Albumentations.
 python scripts/capture.py --clase taza            # espacio guarda, q sale; una sesión por ejecución
 python scripts/capture.py --clase mixto           # varias clases en la misma foto
 python scripts/capture.py --clase fondo           # sin objetos del reto
-python scripts/autolabel.py --vista               # pre-etiqueta; vistas en dataset/revision/
+python scripts/autolabel.py --model models/best.pt --vista   # pre-etiqueta; vistas en dataset/revision/
 # etiquetar (Roboflow / LabelImg / CVAT) en formato YOLO, .txt junto a cada imagen
 python scripts/split_dataset.py                   # train/val/test por sesión
 python scripts/train.py --epochs 80 --device 0   # en la nube: notebooks/train_colab.ipynb (GPU)
@@ -198,7 +203,7 @@ Entrenar en CPU es inviable con miles de fotos (una época tarda ~112 s en CPU, 
 
 ### Etiquetado
 
-1. **Pre-etiquetar:** `python scripts/autolabel.py --vista`.
+1. **Pre-etiquetar:** `python scripts/autolabel.py --model models/best.pt --vista` (sin `--model` usa `models/yolo11n.pt`, que hay que descargar; ver la nota de Instalación).
    - Con `yolo11n.pt` crea los `.txt` de taza, botella, tijeras y celular.
    - En una carpeta de una sola clase, toda caja recibe la clase de la carpeta.
    - Si el modelo no detecta nada en una foto, no crea `.txt` y la lista en `dataset/raw/revisar.txt`.
@@ -220,9 +225,8 @@ Atajo para el destornillador:
 - Etiqueta a mano unas 100 fotos y entrena un primer modelo.
 - Luego pre-etiqueta el resto con `python scripts/autolabel.py --model models/best.pt --carpetas destornillador`.
 
-Para usar el modelo propio, en `config.yaml`:
-- Cambia `modelo.ruta`.
-- Reemplaza `mapeo_clases` por el mapeo identidad (`taza: taza`, …).
+Para cambiar de modelo basta con `modelo.ruta` en `config.yaml` (o `--model` al ejecutar). Un modelo
+propio devuelve los nombres oficiales y se usa tal cual; `mapeo_clases` solo traduce los nombres de modelos COCO.
 
 ## Decisiones técnicas
 

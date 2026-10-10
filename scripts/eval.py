@@ -11,6 +11,7 @@ from datetime import date
 from pathlib import Path
 
 import pandas as pd
+import yaml
 from ultralytics import YOLO
 
 RAIZ = Path(__file__).resolve().parent.parent
@@ -46,8 +47,12 @@ def main():
     p.add_argument("--model", default="models/best.pt")
     p.add_argument("--data", default=str(RAIZ / "dataset" / "data.yaml"))
     p.add_argument("--imgsz", type=int, default=640)
-    p.add_argument("--conf-operacion", type=float, default=0.40, help="umbral usado en vivo (config.yaml)")
+    p.add_argument("--conf-operacion", type=float, default=None,
+                   help="umbral global de operación; por defecto el de config.yaml (modelo.conf)")
     args = p.parse_args()
+    if args.conf_operacion is None:
+
+        args.conf_operacion = yaml.safe_load((RAIZ / "config.yaml").read_text(encoding="utf-8"))["modelo"]["conf"]
 
     modelo = YOLO(args.model)
     comun = dict(data=args.data, split="test", imgsz=args.imgsz, device="cpu", project=str(RAIZ / "runs"))

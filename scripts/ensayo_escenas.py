@@ -140,7 +140,7 @@ def main():
         if frame is not None:
             return frame, True
         if camara.estado != "ok":
-            estado_frame = ui.pantalla_estado("Sin señal. Reintentando conexión...")
+            estado_frame = ui.pantalla_estado("Sin senal. Reintentando conexion...")  # la fuente de OpenCV no dibuja acentos
             cv2.imshow(ui.nombre, estado_frame)
         return None, False
 
