@@ -60,10 +60,10 @@ modelo que no hay ningún objeto en la imagen.
 
 ### División del dataset (modelo v0)
 
-El split se realiza con `scripts/split_dataset.py`, que agrupa por sesión de captura. Cuando una
-clase tiene menos de 3 sesiones, divide cada sesión en bloques consecutivos 70/15/15. Las fotos
-seguidas de una misma sesión quedan en el mismo bloque, para reducir la fuga de información entre
-train y test.
+El split se realiza con `scripts/split_dataset.py --bloques`: cada sesión de captura se divide en
+bloques consecutivos 70/15/15 (train/val/test). Las fotos seguidas de una misma sesión quedan en el
+mismo bloque, para reducir la fuga de información entre train y test. Total: **1 432** imágenes de
+train, **317** de val y **287** de test.
 
 | clase          | train | val | test |
 |----------------|------:|----:|-----:|
