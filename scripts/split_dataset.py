@@ -53,6 +53,9 @@ def main():
     p.add_argument("--val", type=float, default=0.15)
     p.add_argument("--test", type=float, default=0.15)
     p.add_argument("--seed", type=int, default=42)
+    p.add_argument("--bloques", action="store_true",
+                   help="divide TODAS las clases por bloques 70/15/15 dentro de cada sesión "
+                        "(más datos de entrenamiento; test menos estricto)")
     p.add_argument("--reemplazar", action="store_true",
                    help="borra train/, val/ y test/ de la salida antes de dividir")
     p.add_argument("--ejemplares-test", nargs="*", default=[],
@@ -100,11 +103,12 @@ def main():
         n_val = max(1, round(k * args.val)) if k >= 3 else 0
         for i, s in enumerate(sesiones):
             asignacion[s] = "test" if i < n_test else "val" if i < n_test + n_val else "train"
-        if k < 3:
+        if k < 3 or args.bloques:
             for s in sesiones:
                 asignacion[s] = "bloques"
-            print(f"[aviso] {clase}: solo {k} sesión(es); se divide cada sesión en bloques 70/15/15. "
-                  "Captura más sesiones para un test más honesto.")
+            if not args.bloques:
+                print(f"[aviso] {clase}: solo {k} sesión(es); se divide cada sesión en bloques 70/15/15. "
+                      "Captura más sesiones para un test más honesto.")
 
     conteo, sin_etiqueta = defaultdict(int), []
     for s, imgs in por_sesion.items():
