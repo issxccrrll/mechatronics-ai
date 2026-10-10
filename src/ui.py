@@ -185,9 +185,9 @@ def _barra_superior(frame, fps: float, conteo_estado: dict):
 
     cv2.putText(frame, "MECHATRONICS AI", (8, 20), FUENTE, 0.48, (240, 240, 240), 1, cv2.LINE_AA)
 
-    centro = (f"ok {conteo_estado[Estado.ACEPTADA]}  "
-              f"rech {conteo_estado[Estado.RECHAZADA]}  "
-              f"desc {conteo_estado[Estado.DESCONOCIDO]}")
+    centro = (f"aceptadas {conteo_estado[Estado.ACEPTADA]}  |  "
+              f"rechazadas {conteo_estado[Estado.RECHAZADA]}  |  "
+              f"desconocidas {conteo_estado[Estado.DESCONOCIDO]}")
     (tw, th), _ = cv2.getTextSize(centro, FUENTE, 0.42, 1)
     cv2.putText(frame, centro, ((w - tw) // 2, 20), FUENTE, 0.42, (210, 210, 210), 1, cv2.LINE_AA)
 
