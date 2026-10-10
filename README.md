@@ -21,6 +21,11 @@ Cámara (hilo) → Detector (YOLO11n) → Verificador (opcional) → Filtros →
 
 ## Instalación (Windows, Python 3.11)
 
+**Requisitos previos:**
+- **Python 3.11:** `winget install -e --id Python.Python.3.11`, o el instalador de python.org marcando "Add python.exe to PATH". Después, cierra y abre PowerShell.
+- **Git:** `winget install -e --id Git.Git`, o git-scm.com. También puedes descargar el ZIP desde GitHub (Code → Download ZIP).
+- **Abre PowerShell en una carpeta tuya** (por ejemplo `cd $HOME\Documents`). En `C:\Windows\System32`, la carpeta donde abre PowerShell como administrador, Windows no deja clonar.
+
 **Todos los comandos de este README se ejecutan desde la raíz del repositorio** (`mechatronics-ai`),
 con el entorno virtual activado.
 
