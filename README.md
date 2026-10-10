@@ -19,41 +19,113 @@ Cámara (hilo) → Detector (YOLO11n) → Verificador (opcional) → Filtros →
 | `src/ui.py` | Cajas, etiquetas, FPS, contador por clase, ID de seguimiento y trackbars. |
 | `src/logger.py` | Escribe un CSV por sesión en `logs/`. |
 
-## Instalación (Windows, Python 3.11)
+## Instalación paso a paso (Windows)
 
-**Requisitos previos:**
-- **Python 3.11:** `winget install -e --id Python.Python.3.11`, o el instalador de python.org marcando "Add python.exe to PATH". Después, cierra y abre PowerShell.
-- **Git:** `winget install -e --id Git.Git`, o git-scm.com. También puedes descargar el ZIP desde GitHub (Code → Download ZIP).
-- **Abre PowerShell en una carpeta tuya** (por ejemplo `cd $HOME\Documents`). En `C:\Windows\System32`, la carpeta donde abre PowerShell como administrador, Windows no deja clonar.
+Sigue los pasos **en orden** en **PowerShell**. Cada paso dice qué hace, qué escribir y qué debes ver.
+Tiempo total: unos 15 minutos (la mayor parte es la descarga de librerías).
 
-**Todos los comandos de este README se ejecutan desde la raíz del repositorio** (`mechatronics-ai`),
-con el entorno virtual activado.
+### Paso 1. Instalar Python 3.11 y Git (solo si no los tienes)
+
+Comprueba si ya los tienes:
+```powershell
+py -3.11 --version
+git --version
+```
+- **Si ambos muestran una versión** (por ejemplo `Python 3.11.9` y `git version 2.x`), salta al paso 2.
+- **Si dice "no se reconoce como nombre de un cmdlet"**, instala lo que falte:
+  ```powershell
+  winget install -e --id Python.Python.3.11
+  winget install -e --id Git.Git
+  ```
+  Si pregunta por los términos, escribe `Y` y Enter. Espera a que diga *"Instalado correctamente"*.
+  Sin `winget`: descarga Python 3.11 de python.org (marca **"Add python.exe to PATH"**) y Git de git-scm.com.
+
+> ⚠️ **Después de instalar, cierra TODAS las ventanas de PowerShell y abre una nueva.** Las ventanas
+> que ya estaban abiertas no reconocen a Python ni a Git.
+
+### Paso 2. Ir a una carpeta tuya
+
+```powershell
+cd $HOME\Documents
+```
+**Por qué:** si abres PowerShell como administrador, empieza en `C:\Windows\System32`, y ahí Windows no
+deja crear carpetas (el siguiente paso fallaría con *"Permission denied"*).
+
+### Paso 3. Descargar el proyecto
 
 ```powershell
 git clone https://github.com/issxccrrll/mechatronics-ai.git
 cd mechatronics-ai
-# Si no tienes Python 3.11: uv python install 3.11  (convive con otras versiones)
-py -3.11 -m venv venv            # o: & (uv python find 3.11) -m venv venv
-Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass   # permite activar el venv en esta terminal
+```
+**Debes ver:** `Cloning into 'mechatronics-ai'...` y al final `done.` (unos 80 MB: incluye el modelo
+y el conjunto de prueba). Después del `cd`, la línea de PowerShell termina en `\mechatronics-ai>`.
+
+**Desde aquí, todos los comandos se ejecutan dentro de la carpeta `mechatronics-ai`.**
+
+### Paso 4. Crear el entorno virtual
+
+```powershell
+py -3.11 -m venv venv
+```
+**Qué hace:** crea la carpeta `venv` con un Python aislado solo para este proyecto. No imprime nada si
+sale bien.
+- Si dice que `py` no se reconoce: vuelve al paso 1 (falta Python, o no reabriste PowerShell).
+- Alternativa con la ruta completa: `& "$env:LOCALAPPDATA\Programs\Python\Python311\python.exe" -m venv venv`
+
+### Paso 5. Activar el entorno virtual
+
+```powershell
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 .\venv\Scripts\Activate.ps1
+```
+**Qué hace:** la primera línea permite ejecutar el script de activación **solo en esta ventana**; la
+segunda activa el entorno.
+**Debes ver:** `(venv)` al inicio de la línea: `(venv) PS C:\...\mechatronics-ai>`.
+- Si dice que `Activate.ps1` no se reconoce: el paso 4 no se hizo, o no estás dentro de `mechatronics-ai`.
+
+> Cada vez que abras una ventana nueva para usar el proyecto, repite el paso 5 (y el `cd` a la carpeta).
+
+### Paso 6. Instalar las librerías (5–10 minutos)
+
+```powershell
 python -m pip install --upgrade pip
 pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
 pip install -r requirements.txt
 ```
+**Qué hace:** instala PyTorch en su versión para CPU (sin descargar los ~2 GB de CUDA) y luego el resto:
+Ultralytics, OpenCV, OpenVINO, etc.
+**Debes ver:** al final de cada comando, `Successfully installed ...`.
 
-En Linux o macOS: `python3.11 -m venv venv && source venv/bin/activate` y los mismos `pip install`.
+### Paso 7. Comprobar que todo funciona
 
-Los pesos del modelo propio ya vienen incluidos en `models/`:
-- `models/best_openvino_model/` — modelo OpenVINO (por defecto en `config.yaml`).
-- `models/best.pt` — pesos PyTorch.
-- `models/best.onnx` — exportación ONNX (bonus).
+```powershell
+python -m pytest
+```
+**Debes ver:** `42 passed`. Si algo falla aquí, la instalación quedó incompleta: repite el paso 6.
 
-Si la carpeta OpenVINO no existe, el detector usa automáticamente `best.pt` (más lento).
-**No es necesario descargar ni entrenar nada para ejecutar el detector.**
+### Paso 8. Ejecutar el detector
 
-> **Nota:** Para usar el modelo COCO de respaldo (sin destornillador), descarga los pesos base y
-> expórtalos a OpenVINO. Esto solo hace falta para el pre-etiquetado (`autolabel.py`) o para
-> comparar con el modelo COCO:
+```powershell
+python main.py --source 0
+```
+**Qué pasa:** aparece `Calentando modelo...` (unos 10 s la primera vez) y se abre la ventana
+**Mechatronics AI** con la cámara. Pon un objeto frente a la cámara, quieto 1–2 s. Para salir, presiona `q`.
+- Ventana negra con *"Sin senal. Reintentando conexion"*: otro programa usa la cámara (cierra Teams,
+  Zoom o la app Cámara) o la cámara tiene otro número: prueba `python main.py --source 1`.
+
+### Linux o macOS
+
+Lo mismo, cambiando los pasos 4 y 5 por `python3.11 -m venv venv && source venv/bin/activate`.
+
+### El modelo ya viene incluido
+
+**No hay que descargar ni entrenar nada para ejecutar el detector.** Los pesos del modelo propio están en `models/`:
+- `models/best_openvino_model/`: modelo OpenVINO (el que se usa por defecto, según `config.yaml`).
+- `models/best.pt`: pesos PyTorch. Si la carpeta OpenVINO no existe, el detector usa este (más lento).
+- `models/best.onnx`: exportación ONNX.
+
+> **Opcional:** el modelo COCO de respaldo (sin destornillador) solo hace falta para el pre-etiquetado
+> (`autolabel.py`) o para comparar:
 > ```powershell
 > cd models; python -c "from ultralytics import YOLO; YOLO('yolo11n.pt')"; cd ..
 > python scripts/export.py --model models/yolo11n.pt --formatos openvino
