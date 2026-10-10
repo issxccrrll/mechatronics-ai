@@ -24,6 +24,7 @@ Cámara (hilo) → Detector (YOLO11n) → Verificador (opcional) → Filtros →
 ```powershell
 # Si no tienes Python 3.11: uv python install 3.11  (convive con otras versiones)
 py -3.11 -m venv venv            # o: & (uv python find 3.11) -m venv venv
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass   # permite activar el venv en esta terminal
 .\venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
 pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
