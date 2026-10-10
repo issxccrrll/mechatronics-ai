@@ -102,10 +102,9 @@ def main():
             print(f"{i:2d}. {esc['descripcion']} -> {esc['esperado']}")
         sys.exit(0)
 
-    # Importaciones pesadas se hacen solo si se va a abrir el pipeline (sin --listar)
+    # Importaciones pesadas solo si se va a abrir el pipeline
     import cv2
-    import numpy as np
-    
+
     from src.camera import Camara
     from src.config import cargar_config
     from src.detector import YoloDetector
@@ -125,103 +124,109 @@ def main():
     camara = Camara(cam_cfg["source"], cam_cfg["ancho"], cam_cfg["alto"],
                     cam_cfg["reintentos_max"], cam_cfg["espera_reintento_s"])
 
-    resultados = []
     fuente = cv2.FONT_HERSHEY_SIMPLEX
+
+    def procesar_frame(frame):
+        """Pipeline completo: detectar → verificar → filtrar → dibujar."""
+        dets = detector.detectar(frame)
+        dets = verificador.verificar(frame, dets)
+        dets = aplicar_filtros(filtros, dets, frame.shape)
+        frame = ui.dibujar(frame, dets, fps_meter.tick())
+        return frame, dets
+
+    def leer_o_estado(timeout=0.05):
+        """Lee un frame; si no hay, muestra pantalla de estado si la cámara está desconectada."""
+        frame = camara.leer(timeout=timeout)
+        if frame is not None:
+            return frame, True
+        if camara.estado != "ok":
+            estado_frame = ui.pantalla_estado("Sin señal. Reintentando conexión...")
+            cv2.imshow(ui.nombre, estado_frame)
+        return None, False
+
+    resultados = []
 
     try:
         for i, esc in enumerate(ESCENAS, 1):
             terminar = False
-            
+
             while True:
-                frame = camara.leer(timeout=0.05)
-                if frame is None:
-                    tecla = cv2.waitKey(30) & 0xFF
-                    if tecla == ord('q'):
+                frame, hay_frame = leer_o_estado()
+                if not hay_frame:
+                    if (cv2.waitKey(30) & 0xFF) == ord('q'):
                         terminar = True
                         break
                     continue
-                
-                # Procesar pipeline
-                dets = detector.detectar(frame)
-                dets = verificador.verificar(frame, dets)
-                dets = aplicar_filtros(filtros, dets, frame.shape)
-                frame = ui.dibujar(frame, dets, fps_meter.tick())
-                
-                # Render adicional para el ensayo
+
+                frame, _dets = procesar_frame(frame)
+
+                # Rótulo de la escena
                 texto_arriba = f"Escena {i}/{len(ESCENAS)}: {esc['descripcion']}"
                 texto_abajo = "ESPACIO = evaluar | s = saltar | q = terminar"
                 cv2.rectangle(frame, (0, 24), (frame.shape[1], 75), (0, 0, 0), -1)
                 cv2.putText(frame, texto_arriba, (10, 45), fuente, 0.6, (0, 255, 255), 1, cv2.LINE_AA)
                 cv2.putText(frame, texto_abajo, (10, 65), fuente, 0.5, (200, 200, 200), 1, cv2.LINE_AA)
-                
                 cv2.imshow(ui.nombre, frame)
                 tecla = cv2.waitKey(1) & 0xFF
-                
+
                 if tecla == ord('s'):
-                    break  # Salta escena actual
+                    break
                 elif tecla == ord('q'):
                     terminar = True
                     break
                 elif tecla == ord(' '):
-                    # Inicia evaluación de 30 frames
+                    # Evaluación: capturar 30 frames por el pipeline
                     capturas = []
                     while len(capturas) < 30:
-                        f2 = camara.leer(timeout=0.05)
-                        if f2 is None:
+                        f2, hay = leer_o_estado()
+                        if not hay:
                             if (cv2.waitKey(10) & 0xFF) == ord('q'):
                                 terminar = True
                                 break
                             continue
-                        
-                        d2 = detector.detectar(f2)
-                        d2 = verificador.verificar(f2, d2)
-                        d2 = aplicar_filtros(filtros, d2, f2.shape)
-                        f2 = ui.dibujar(f2, d2, fps_meter.tick())
-                        
+                        f2, d2 = procesar_frame(f2)
                         capturas.append(conteo_aceptadas(d2, clases_oficiales))
-                        
                         cv2.rectangle(f2, (0, 24), (f2.shape[1], 75), (0, 0, 0), -1)
                         cv2.putText(f2, f"Evaluando... {len(capturas)}/30", (10, 55), fuente, 0.7, (0, 200, 255), 2)
                         cv2.imshow(ui.nombre, f2)
-                        
                         if (cv2.waitKey(1) & 0xFF) == ord('q'):
                             terminar = True
                             break
-                            
+
                     if terminar:
                         break
-                        
+
                     moda = moda_conteos(capturas)
                     acierto = es_acierto(esc['esperado'], moda)
-                    
-                    # Pantalla de resultado 2s
-                    f_res = frame.copy()
+
+                    # Pantalla de resultado (~2 s)
                     color_res = (0, 255, 0) if acierto else (0, 0, 255)
                     texto_res = "ACIERTO" if acierto else "FALLO"
-                    y_c = int(f_res.shape[0] / 2)
+                    y_c = frame.shape[0] // 2
+                    f_res = frame.copy()
                     cv2.rectangle(f_res, (0, y_c - 40), (f_res.shape[1], y_c + 40), (0, 0, 0), -1)
-                    cv2.putText(f_res, f"{texto_res} (Obtenido: {moda} | Esperado: {esc['esperado']})", 
+                    cv2.putText(f_res, f"{texto_res} (Obtenido: {moda} | Esperado: {esc['esperado']})",
                                 (10, y_c + 10), fuente, 0.55, color_res, 2, cv2.LINE_AA)
                     cv2.imshow(ui.nombre, f_res)
                     cv2.waitKey(2000)
-                    
+
                     resultados.append({
                         "escena": i,
                         "descripcion": esc["descripcion"],
                         "esperado": str(esc["esperado"]),
                         "obtenido": str(moda),
                         "acierto": acierto,
-                        "frames": len(capturas)
+                        "frames": len(capturas),
                     })
                     break
-            
+
             if terminar:
                 break
     finally:
         camara.cerrar()
         cv2.destroyAllWindows()
-        
-        # Reporte final
+
+        # Reporte en consola y CSV
         if resultados:
             aciertos, evaluadas, pct = resumen(resultados)
             print("\n--- RESUMEN DEL ENSAYO ---")
@@ -229,16 +234,17 @@ def main():
                 marca = "OK" if r["acierto"] else "X "
                 print(f"Escena {r['escena']:2d} [{marca}]: Obtenido {r['obtenido']} vs {r['esperado']}")
             print(f"\nAciertos: {aciertos}/{evaluadas} = {pct:.1f}% (meta: 85%)")
-            
+
             logs_dir = RAIZ / "logs"
             logs_dir.mkdir(exist_ok=True)
             t_str = datetime.now().strftime("%Y%m%d_%H%M%S")
             csv_path = logs_dir / f"ensayo_{t_str}.csv"
-            with open(csv_path, "w", newline="", encoding="utf-8") as f:
+            with open(csv_path, "w", newline="", encoding="utf-8-sig") as f:
                 w = csv.DictWriter(f, fieldnames=["escena", "descripcion", "esperado", "obtenido", "acierto", "frames"])
                 w.writeheader()
                 w.writerows(resultados)
             print(f"Reporte guardado en {csv_path.relative_to(RAIZ)}")
+
 
 if __name__ == "__main__":
     main()
