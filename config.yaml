@@ -70,4 +70,3 @@ logger:
   activo: true
   carpeta: logs
   incluir_rechazadas: true
-  abrir_conteo: true          # al cerrar, abre el resumen de conteo (logs/*_conteo.csv) en Excel
